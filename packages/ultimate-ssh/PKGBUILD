@@ -1,0 +1,46 @@
+# Ultimate SSH, from a snapshot of its git repository; see ultimate-mail.
+pkgname=ultimate-ssh
+pkgver=$(<"$startdir/VERSION")
+pkgrel=1
+pkgdesc="Tabbed SSH terminal with a session tree, broadcast and a remote file browser"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-ssh"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk4' 'vte4' 'openssh')
+source=("ultimate-ssh.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+  cd ultimate-ssh
+  local lib=/usr/share/ultimate-ssh
+  install -d "$pkgdir$lib"
+  install -m644 ultimate_ssh.py sshconfig.py editor.py chatbridge.py README.md LICENSE "$pkgdir$lib/"
+  chmod 755 "$pkgdir$lib/ultimate_ssh.py"
+  python -m compileall -q -d "$lib" "$pkgdir$lib"
+
+  install -d "$pkgdir/usr/bin"
+  printf '#!/bin/sh\nexec python3 %s/ultimate_ssh.py "$@"\n' "$lib" > "$pkgdir/usr/bin/ultimate-ssh"
+  chmod 755 "$pkgdir/usr/bin/ultimate-ssh"
+
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/applications/ultimate-ssh.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Ultimate SSH
+GenericName=SSH session manager
+Comment=Tabbed SSH terminal with a session tree, broadcast and a remote file browser
+Exec=ultimate-ssh
+Icon=ultimate-ssh
+Terminal=false
+Categories=Network;RemoteAccess;System;TerminalEmulator;
+Keywords=ssh;terminal;remote;sftp;server;
+StartupNotify=true
+StartupWMClass=dev.ultimatessh.UltimateSsh
+DESKTOP
+  # the icon lives with the app (data/); older snapshots fall back to a stock one
+  if [[ -f data/ultimate-ssh.svg ]]; then
+    install -Dm644 data/ultimate-ssh.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/ultimate-ssh.svg"
+  else
+    sed -i "s/^Icon=ultimate-ssh$/Icon=utilities-terminal/" "$pkgdir/usr/share/applications/ultimate-ssh.desktop"
+  fi
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

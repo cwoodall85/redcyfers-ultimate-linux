@@ -1,0 +1,25 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# six: Python 2/3 compatibility module; spice-gtk's protocol code
+# generator (spice-common) still imports it.
+pkgname=python-six
+pkgver=1.17.0
+pkgrel=1
+pkgdesc="Python 2 and 3 compatibility utilities"
+arch=('any')
+url="https://github.com/benjaminp/six"
+license=('MIT')
+depends=('Python')
+makedepends=('setuptools')
+source=("https://files.pythonhosted.org/packages/source/s/six/six-${pkgver}.tar.gz")
+sha256sums=('ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81')
+
+build() {
+  cd "six-$pkgver"
+  python3 -m pip wheel --no-deps --no-build-isolation --no-index -w dist .
+}
+
+package() {
+  cd "six-$pkgver"
+  python3 -m pip install --no-deps --no-index --root "$pkgdir" --prefix /usr dist/*.whl
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

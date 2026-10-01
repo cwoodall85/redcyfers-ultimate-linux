@@ -1,0 +1,18 @@
+#!/bin/bash
+# OpenVPN: the client for OpenVPN VPNs (Chris's work VPNs are OpenVPN,
+# through NetworkManager). BLFS has no page for it.
+# Source: the project's release; sha256 recorded on first download here
+# (TOFU; the release also has a detached signature).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/OpenVPN/openvpn/releases/download/v2.7.7/openvpn-2.7.7.tar.gz"
+FILE=openvpn-2.7.7.tar.gz
+cd /sources
+echo "3ab8f48fd6c26d49ba2333a092433949afdb5c85c0e6a1ff265784fbc04a2463  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-openvpn
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd openvpn-2.7.7
+./configure --prefix=/usr --sysconfdir=/etc --disable-lzo --enable-systemd
+make -j"$(nproc)"
+make install
+cd / && rm -rf $W

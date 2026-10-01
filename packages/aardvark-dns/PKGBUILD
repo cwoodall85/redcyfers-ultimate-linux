@@ -1,0 +1,23 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# aardvark-dns: name resolution between containers on a Podman network.
+pkgname=aardvark-dns
+pkgver=2.1.0
+pkgrel=1
+pkgdesc="DNS server for Podman container networks"
+arch=('x86_64')
+url="https://github.com/containers/aardvark-dns"
+license=('Apache-2.0')
+depends=('glibc')
+options=('!lto')
+source=("aardvark-dns-${pkgver}.tar.gz::https://github.com/containers/aardvark-dns/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('daf871488603e659b0501224cf0731ac317809b1d1701fc061cb4f6ae39a894f')
+
+build() {
+  cd "aardvark-dns-$pkgver"
+  cargo build --release --locked
+}
+
+package() {
+  cd "aardvark-dns-$pkgver"
+  install -Dm755 target/release/aardvark-dns "$pkgdir/usr/lib/podman/aardvark-dns"
+}

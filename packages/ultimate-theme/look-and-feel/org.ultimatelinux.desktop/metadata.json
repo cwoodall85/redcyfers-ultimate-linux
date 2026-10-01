@@ -1,0 +1,12 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [{ "Name": "Ultimate Linux" }],
+        "Description": "Near-black and mint, a thinking-network wallpaper, and live system monitors on the desktop",
+        "Id": "org.ultimatelinux.desktop",
+        "License": "MIT",
+        "Name": "Ultimate",
+        "Version": "1.0"
+    },
+    "X-Plasma-APIVersion": "2"
+}

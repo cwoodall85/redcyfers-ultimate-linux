@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Ultimate Linux"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Disk reads and writes, and free space",
+        "Icon": "drive-harddisk",
+        "Id": "org.ultimatelinux.disk",
+        "License": "MIT",
+        "Name": "Ultimate Disk",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

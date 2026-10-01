@@ -1,0 +1,24 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh, like the
+# other tools built against this system's libraries.
+# wl-clipboard: wl-copy / wl-paste, the command-line clipboard on Wayland
+# (gh, Claude Code and scripts look for it).
+pkgname=wl-clipboard
+pkgver=2.3.0
+pkgrel=1
+pkgdesc="Command-line copy/paste for Wayland"
+arch=('x86_64')
+url="https://github.com/bugaevc/wl-clipboard"
+license=('GPL-3.0-or-later')
+depends=('wayland')
+makedepends=('meson' 'wayland-protocols')
+source=("wl-clipboard-${pkgver}.tar.gz::https://github.com/bugaevc/wl-clipboard/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('b4dc560973f0cd74e02f817ffa2fd44ba645a4f1ea94b7b9614dacc9f895f402')
+
+build() {
+  meson setup build "wl-clipboard-$pkgver" --prefix=/usr --buildtype=release
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

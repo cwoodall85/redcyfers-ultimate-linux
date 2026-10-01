@@ -1,0 +1,5 @@
+# Let Bluetooth keyboards and mice wake the computer from sleep: allow
+# wakeup on every USB Bluetooth adapter (interface class e0) and on each
+# hub and controller between it and the CPU -- the kernel leaves the USB
+# root hubs at "disabled" when the controller's wake flag is set late.
+ACTION=="add|change", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", ATTR{bInterfaceClass}=="e0", ATTR{bInterfaceNumber}=="00", RUN+="/usr/lib/ultimate/usb-wake-path %S%p"

@@ -1,0 +1,64 @@
+pkgname=ultimate-claude
+pkgver=0.12.0
+pkgrel=1
+pkgdesc="Claude integrations for Ultimate Linux: the Claude bar (Ask and Assistant modes), ask, and MCP servers"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-linux"
+license=('MIT')
+depends=('python'
+         'procps-ng' 'iproute2' 'pciutils' 'util-linux' 'systemd' 'pacman')
+optdepends=('claude-code: the default engine (otherwise ultimate-claude-welcome installs it from Anthropic)'
+            'whisper-cpp: talking to Claude (speech to text, on this machine)'
+            'piper-tts: Claude talking back (text to speech, on this machine)'
+            'python-anthropic: the API engine (CLAUDE_ENGINE=api)'
+            'python-keyring: storing an API key with ask --api-key'
+            'plasma-workspace: the Claude bar and its desktop overlay'
+            'ultimate-ssh: the first-login sign-in terminal (konsole otherwise); the assistant opens sessions in it'
+            'ultimate-mail: the assistant reads and changes your calendar through it'
+            'wl-clipboard: clipboard tools for the assistant'
+            'libnotify: notifications and reminders from the assistant'
+            'konsole: the sign-in terminal when Ultimate SSH is absent')
+backup=('etc/ultimate/claude.conf')
+
+package() {
+  local src="$startdir/ultimate_claude"
+  local site
+  site=$(python -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+  install -d "$pkgdir$site/ultimate_claude"
+  install -m644 "$src"/*.py "$pkgdir$site/ultimate_claude/"
+  python -m compileall -q -d "$site/ultimate_claude" "$pkgdir$site/ultimate_claude"
+
+  local cmd mod
+  for pair in ask:ask ultimate-mcp:mcp_server ultimate-claude-setup:setup \
+              ultimate-claude-bar:bar ultimate-claude-welcome:welcome \
+              ultimate-assistant-mcp:assistant ultimate-agent:agentd ultimate-agent-token:secrets \
+              ultimate-voice:voice ultimate-listen:voice:main_listen ultimate-say:voice:main_say; do
+    IFS=: read -r cmd mod fn <<<"$pair"; fn=${fn:-main}
+    install -d "$pkgdir/usr/bin"
+    printf '#!/usr/bin/python3\nimport sys\nfrom ultimate_claude.%s import %s\nsys.exit(%s())\n' \
+      "$mod" "$fn" "$fn" > "$pkgdir/usr/bin/$cmd"
+    chmod 755 "$pkgdir/usr/bin/$cmd"
+  done
+
+  install -Dm644 "$startdir/files/claude.conf" "$pkgdir/etc/ultimate/claude.conf"
+  # Drop-in tool sets from other packages (ultimate_claude/plugins.py)
+  install -Dm644 "$startdir/files/mcp.d-README" "$pkgdir/usr/lib/ultimate/mcp.d/README"
+  install -Dm644 "$startdir/files/ultimate-claude-welcome.desktop" \
+    "$pkgdir/etc/xdg/autostart/ultimate-claude-welcome.desktop"
+  install -d "$pkgdir/usr/share/plasma/plasmoids"
+  cp -r "$startdir/plasmoid/org.ultimatelinux.claudebar" "$pkgdir/usr/share/plasma/plasmoids/"
+  find "$pkgdir/usr/share/plasma" -type d -exec chmod 755 {} + -o -type f -exec chmod 644 {} +
+  # The always-on assistant (agentd.py): answers #claude in Ultimate Chat and
+  # runs your schedules while you are logged in. Installed, NOT enabled: an
+  # agent with shell access starts only when its user turns it on
+  # (systemctl --user enable --now ultimate-agent).
+  install -Dm644 "$startdir/files/ultimate-agent.service" "$pkgdir/usr/lib/systemd/user/ultimate-agent.service"
+  # Talk to Claude from anywhere: a global shortcut (System Settings can change it)
+  install -Dm644 "$startdir/files/org.ultimatelinux.talk.desktop" \
+    "$pkgdir/usr/share/kglobalaccel/org.ultimatelinux.talk.desktop"
+  install -Dm644 "$startdir/files/ultimate-claude-setup.service" \
+    "$pkgdir/usr/lib/systemd/user/ultimate-claude-setup.service"
+  install -d "$pkgdir/usr/lib/systemd/user/default.target.wants"
+  ln -s ../ultimate-claude-setup.service \
+    "$pkgdir/usr/lib/systemd/user/default.target.wants/ultimate-claude-setup.service"
+}

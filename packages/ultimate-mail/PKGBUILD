@@ -1,0 +1,50 @@
+# Ultimate Mail, from a snapshot of its git repository. build.sh makes the
+# snapshot (git archive of HEAD, so only committed work) and writes the
+# version; this recipe never reaches outside its own directory.
+pkgname=ultimate-mail
+pkgver=$(<"$startdir/VERSION")
+pkgrel=1
+pkgdesc="GTK4 mail client with calendar, chat and terminal views"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-mail"
+license=('MIT')
+depends=('python' 'python-gobject' 'gtk4' 'libadwaita' 'webkitgtk-6.0'
+         'libsecret' 'vte4' 'python-imapclient' 'openssh')
+optdepends=('ultimate-ssh: host list for the Terminal view')
+source=("ultimate-mail.tar.gz")
+sha256sums=('SKIP')
+
+prepare() {
+  # The restart helper assumes the per-user install in ~/.local/bin.
+  sed -i 's|"$HOME/.local/bin/ultimate-mail-gtk"|/usr/bin/ultimate-mail-gtk|' \
+    ultimate-mail/ops/restart-ultimate-mail
+}
+
+package() {
+  cd ultimate-mail
+  local lib=/usr/lib/ultimate-mail
+  install -d "$pkgdir$lib/ops"
+  # The app runs from its tree. Personal tooling (ops/morning-brief),
+  # docs, tests and the per-user installers stay out of the package.
+  cp -r um ui data "$pkgdir$lib/"
+  install -m755 ultimate-mail ultimate-mail-gtk "$pkgdir$lib/"
+  install -m755 ops/restart-ultimate-mail "$pkgdir$lib/ops/"
+  install -m644 README.md LICENSE "$pkgdir$lib/"
+  find "$pkgdir$lib" -name __pycache__ -prune -exec rm -rf {} +
+  python -m compileall -q -d "$lib" "$pkgdir$lib"
+
+  install -d "$pkgdir/usr/bin"
+  for cmd in ultimate-mail ultimate-mail-gtk; do
+    printf '#!/bin/sh\nexec %s/%s "$@"\n' "$lib" "$cmd" > "$pkgdir/usr/bin/$cmd"
+    chmod 755 "$pkgdir/usr/bin/$cmd"
+  done
+  printf '#!/bin/sh\nexec %s/ops/restart-ultimate-mail "$@"\n' "$lib" \
+    > "$pkgdir/usr/bin/ultimate-mail-restart"
+  chmod 755 "$pkgdir/usr/bin/ultimate-mail-restart"
+
+  install -Dm644 data/dev.ultimatemail.UltimateMail.desktop \
+    "$pkgdir/usr/share/applications/dev.ultimatemail.UltimateMail.desktop"
+  install -Dm644 data/ultimate-mail.svg \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/ultimate-mail.svg"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

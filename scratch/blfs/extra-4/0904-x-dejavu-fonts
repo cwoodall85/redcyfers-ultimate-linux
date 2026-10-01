@@ -1,0 +1,23 @@
+#!/bin/bash
+# DejaVu fonts: the general-purpose fallback (Latin, Greek, Cyrillic, maths
+# and symbols) behind Inter and JetBrains Mono. BLFS describes such fonts but
+# has no build step for them.
+# Source: the project's 2.37 release; sha256 as published for this release
+# for years (and matching the download here).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2"
+FILE=dejavu-fonts-ttf-2.37.tar.bz2
+cd /sources
+echo "fa9ca4d13871dd122f61258a80d01751d603b4d3ee14095d65453b4e846e17d7  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-dejavu
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd dejavu-fonts-ttf-2.37
+install -d /usr/share/fonts/dejavu /usr/share/fontconfig/conf.avail /etc/fonts/conf.d
+install -m644 ttf/*.ttf /usr/share/fonts/dejavu/
+install -m644 fontconfig/*.conf /usr/share/fontconfig/conf.avail/
+for f in fontconfig/*.conf; do
+  ln -sf ../../../usr/share/fontconfig/conf.avail/${f##*/} /etc/fonts/conf.d/${f##*/}
+done
+fc-cache -f /usr/share/fonts/dejavu
+cd / && rm -rf $W

@@ -1,0 +1,34 @@
+# Built on Ultimate Linux itself (tools/native-makepkg.sh).
+# libei: the Wayland-era way for an app to send emulated input (mouse,
+# keyboard) to the compositor. KDE Connect's remote-input plugin needs it
+# (use the phone as a touchpad or keyboard).
+# Its protocol scanner is a Python script that wants attrs, which this
+# system has no package for: the wheel is used at build time only.
+pkgname=libei
+pkgver=1.6.0
+pkgrel=1
+_attrs=26.1.0
+pkgdesc="Library for emulated input (Wayland), used by KDE Connect remote input"
+arch=('x86_64')
+url="https://gitlab.freedesktop.org/libinput/libei"
+license=('MIT')
+makedepends=('meson' 'ninja')
+source=("https://gitlab.freedesktop.org/libinput/libei/-/archive/${pkgver}/libei-${pkgver}.tar.gz"
+        "https://files.pythonhosted.org/packages/64/b4/17d4b0b2a2dc85a6df63d1157e028ed19f90d4cd97c36717afef2bc2f395/attrs-${_attrs}-py3-none-any.whl")
+noextract=("attrs-${_attrs}-py3-none-any.whl")
+sha256sums=('81b4b967f0e5938492434a04f7ea2e6c6d96d3e6c44700bc691821f82281e602'
+            'c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309')
+
+build() {
+  rm -rf pydeps && mkdir pydeps
+  python3 -m zipfile -e "attrs-${_attrs}-py3-none-any.whl" pydeps
+  export PYTHONPATH="$srcdir/pydeps${PYTHONPATH:+:$PYTHONPATH}"
+  meson setup build "libei-$pkgver" --prefix=/usr --buildtype=release \
+    -Dtests=disabled -Ddocumentation=[]
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+  install -Dm644 "libei-$pkgver/COPYING" "$pkgdir/usr/share/licenses/$pkgname/COPYING"
+}

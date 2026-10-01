@@ -1,0 +1,18 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# protoc, the Protocol Buffers compiler, from Google's release. Build-time
+# only: netavark generates its gRPC code with it.
+pkgname=protoc-bin
+pkgver=36.2
+pkgrel=1
+pkgdesc="Protocol Buffers compiler (official binary, in /opt/protoc)"
+arch=('x86_64')
+url="https://github.com/protocolbuffers/protobuf"
+license=('BSD-3-Clause')
+options=('!strip')
+source=("https://github.com/protocolbuffers/protobuf/releases/download/v${pkgver}/protoc-${pkgver}-linux-x86_64.zip")
+sha256sums=('121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278')
+
+package() {
+  install -Dm755 bin/protoc "$pkgdir/opt/protoc/bin/protoc"
+  cp -r include "$pkgdir/opt/protoc/"
+}

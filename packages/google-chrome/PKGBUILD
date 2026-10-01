@@ -1,0 +1,47 @@
+# Google Chrome, repackaged from Google's own Debian build. Chrome is closed
+# source, so this takes the official binary as it is (the same approach as
+# Arch's AUR package).
+#
+# Google's terms do not allow redistributing Chrome. The built package may
+# go into a private repository for our own machines, never a public one;
+# a public repo would ship this PKGBUILD only, so each machine downloads
+# Chrome from Google itself.
+#
+# Every library Chrome links against is in the from-source desktop layer;
+# the Qt 5 shim is never loaded because Chrome falls back to GTK.
+pkgname=google-chrome
+pkgver=154.0.8037.57
+pkgrel=1
+pkgdesc="Google's web browser"
+arch=('x86_64')
+url="https://www.google.com/chrome/"
+license=('LicenseRef-Google-Chrome')
+depends=('alsa-lib' 'at-spi2-core' 'cairo' 'cups' 'curl' 'dbus' 'expat' 'glib2'
+         'gtk3' 'libdrm' 'libx11' 'libxcb' 'libxcomposite' 'libxdamage'
+         'libxext' 'libxfixes' 'libxkbcommon' 'libxrandr' 'mesa' 'nspr' 'nss'
+         'pango' 'systemd' 'vulkan-loader' 'xdg-utils')
+options=('!strip' '!debug')
+source=("https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${pkgver}-1_amd64.deb")
+sha256sums=('66c0645f6a19871bab2844b8537c11a0db2e7d3bea8ef85a1c7cb52a54e65a3e')
+noextract=("google-chrome-stable_${pkgver}-1_amd64.deb")
+
+prepare() {
+  bsdtar -xf "google-chrome-stable_${pkgver}-1_amd64.deb" data.tar.xz
+  mkdir -p root
+  bsdtar -xf data.tar.xz -C root
+}
+
+package() {
+  cp -a root/opt root/usr "$pkgdir/"
+  # Debian's daily job re-adds Google's apt repository; pacman owns updates here.
+  rm -rf "$pkgdir/opt/google/chrome/cron" "$pkgdir/usr/share/doc" \
+    "$pkgdir/usr/share/gnome-control-center"
+  # Chrome sandboxes with user namespaces (CONFIG_USER_NS=y); the setuid
+  # helper is its fallback and must be setuid root to work at all.
+  chmod 4755 "$pkgdir/opt/google/chrome/chrome-sandbox"
+  for s in 16 24 32 48 64 128 256; do
+    install -Dm644 "$pkgdir/opt/google/chrome/product_logo_$s.png" \
+      "$pkgdir/usr/share/icons/hicolor/${s}x${s}/apps/google-chrome.png"
+  done
+  ln -s google-chrome-stable "$pkgdir/usr/bin/google-chrome"
+}

@@ -1,0 +1,21 @@
+#!/bin/bash
+# libnftnl -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://www.netfilter.org/projects/libnftnl/files/libnftnl-1.3.2.tar.xz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://www.netfilter.org/projects/libnftnl/files/libnftnl-1.3.2.tar.xz"
+FILE=libnftnl-1.3.2.tar.xz
+cd /sources
+echo "c97abc3409f8fa396b4462b2bb7f147a3a47a4ddc97cfa0b2f18890c9cfde8b0  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-libnftnl
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr --disable-static
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

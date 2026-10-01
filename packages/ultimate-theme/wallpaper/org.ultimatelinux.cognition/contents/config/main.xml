@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="Fps" type="Int">
+      <label>Frames per second</label>
+      <default>15</default>
+      <min>5</min>
+      <max>60</max>
+    </entry>
+    <entry name="Brightness" type="Int">
+      <label>Brightness, in percent</label>
+      <default>85</default>
+      <min>10</min>
+      <max>100</max>
+    </entry>
+    <entry name="ShowStats" type="Bool">
+      <label>Draw the old system readout on the wallpaper (the Ultimate widgets replace it)</label>
+      <default>false</default>
+    </entry>
+    <entry name="ShowClaude" type="Bool">
+      <label>The brain reacts to Claude working</label>
+      <default>true</default>
+    </entry>
+    <entry name="ShowAnswers" type="Bool">
+      <label>Draw Claude's answers over the wallpaper (the Ultimate Claude widget replaces it)</label>
+      <default>false</default>
+    </entry>
+    <entry name="ShowThoughts" type="Bool">
+      <label>Show thought fragments</label>
+      <default>true</default>
+    </entry>
+  </group>
+</kcfg>

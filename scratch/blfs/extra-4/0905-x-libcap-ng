@@ -1,0 +1,18 @@
+#!/bin/bash
+# libcap-ng: capability handling OpenVPN uses to drop privileges on Linux.
+# Source: the author's release tarball; sha256 recorded on first download
+# here (TOFU).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://people.redhat.com/sgrubb/libcap-ng/libcap-ng-0.8.5.tar.gz"
+FILE=libcap-ng-0.8.5.tar.gz
+cd /sources
+echo "3ba5294d1cbdfa98afaacfbc00b6af9ed2b83e8a21817185dfd844cc8c7ac6ff  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-libcap-ng
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd libcap-ng-0.8.5
+./configure --prefix=/usr --disable-static --without-python3
+make -j"$(nproc)"
+make install
+cd / && rm -rf $W
+ldconfig

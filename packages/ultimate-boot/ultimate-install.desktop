@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Install RedCyfer's Ultimate Linux
+Comment=Install this system to a disk
+Icon=ultimate-linux
+Exec=ultimate-ssh --title Install --run "pkexec /usr/bin/ultimate-install; echo; printf 'Press Enter to close. '; read _"
+Categories=System;

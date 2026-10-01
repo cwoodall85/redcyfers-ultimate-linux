@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Install Ultimate Linux
+Comment=Install to disk with archinstall
+Icon=system-software-install
+Exec=ultimate-ssh --title Install --run "sudo archinstall --config /etc/ultimate/archinstall.json; echo; printf 'Press Enter to close. '; read _"
+Terminal=false

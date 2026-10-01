@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Ultimate Linux"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Processor load, history and every core",
+        "Icon": "cpu",
+        "Id": "org.ultimatelinux.cpu",
+        "License": "MIT",
+        "Name": "Ultimate CPU",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

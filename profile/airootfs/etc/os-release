@@ -1,0 +1,10 @@
+NAME="Ultimate Linux"
+PRETTY_NAME="Ultimate Linux (live)"
+ID=ultimate
+ID_LIKE=arch
+BUILD_ID=rolling
+ANSI_COLOR="38;2;95;175;255"
+HOME_URL="https://redcyfer.com/linux/"
+SUPPORT_URL="https://chat.redcyfer.com/join"
+BUG_REPORT_URL="https://github.com/cwoodall85/redcyfers-ultimate-linux/issues"
+LOGO=ultimate-linux

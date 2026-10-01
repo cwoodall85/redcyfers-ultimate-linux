@@ -1,0 +1,22 @@
+#!/bin/bash
+# arp-scan -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://github.com/royhills/arp-scan/archive/1.10.0/arp-scan-1.10.0.tar.gz
+# Checksum (sha256) from Arch's package recipe; verified on download.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/royhills/arp-scan/archive/1.10.0/arp-scan-1.10.0.tar.gz"
+FILE=arp-scan-1.10.0.tar.gz
+cd /sources
+echo "204b13487158b8e46bf6dd207757a52621148fdd1d2467ebd104de17493bab25  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-arp-scan
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+autoreconf -fiv
+./configure --prefix=/usr --sbindir=/usr/bin
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

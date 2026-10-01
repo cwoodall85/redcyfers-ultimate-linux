@@ -1,0 +1,21 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# spice-protocol: headers for the SPICE remote display protocol (the
+# console virt-viewer shows for our test VMs).
+pkgname=spice-protocol
+pkgver=0.14.5
+pkgrel=1
+pkgdesc="Headers for SPICE protocol"
+arch=('any')
+url="https://www.spice-space.org/"
+license=('BSD-3-Clause')
+source=("https://www.spice-space.org/download/releases/spice-protocol-${pkgver}.tar.xz")
+sha256sums=('baf58449f6e89d19f475899ad5fb9196fdc46c03cc53233f4e39cf2978f9cff7')
+
+build() {
+  meson setup build "spice-protocol-$pkgver" --prefix=/usr
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

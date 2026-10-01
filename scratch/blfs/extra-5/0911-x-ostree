@@ -1,0 +1,21 @@
+#!/bin/bash
+# libostree: the content store Flatpak keeps apps and runtimes in. BLFS has
+# no page for it. HTTP through libcurl (already here) instead of libsoup 2;
+# no SELinux policy on this system.
+# Source: the project's release; sha256 recorded on first download here (TOFU).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/ostreedev/ostree/releases/download/v2026.4/libostree-2026.4.tar.xz"
+FILE=libostree-2026.4.tar.xz
+cd /sources
+echo "b26c9016eb03bb4ee52cc00c642d56e00fc79ae7faac6bf4aa317d7451339ef7  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-ostree
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd libostree-2026.4
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+  --with-curl --without-soup --without-soup3 --without-selinux \
+  --with-openssl --disable-gtk-doc --disable-static
+make -j"$(nproc)"
+make install
+cd / && rm -rf $W
+ldconfig

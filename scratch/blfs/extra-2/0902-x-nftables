@@ -1,0 +1,23 @@
+#!/bin/bash
+# nftables -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# With JSON (jansson, 0901a): netavark and libvirt talk to nft in JSON.
+# Source: https://www.netfilter.org/projects/nftables/files/nftables-1.1.7.tar.xz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://www.netfilter.org/projects/nftables/files/nftables-1.1.7.tar.xz"
+FILE=nftables-1.1.7.tar.xz
+cd /sources
+echo "a6fbf060d8d4fff001517a2b94f356bb4366bfbf0ba366366f9d27cc38caa58f  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-nftables
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr --sysconfdir=/etc --disable-debug --disable-man-doc \
+            --with-json --with-cli=readline
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

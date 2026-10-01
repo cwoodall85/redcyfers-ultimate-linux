@@ -1,0 +1,9 @@
+# RedCyfer's Ultimate Linux repository servers. pacman tries them in order.
+# This is a backup file: edit it and upgrades keep your copy.
+#
+# The public mirror (CloudFront, read-only; every package and database is
+# signed and pacman checks the signatures):
+Server = https://pkg.redcyfer.com/$repo/os/$arch
+#
+# A local copy (scratch/repo/make-repo.sh writes one to /mnt/storage):
+#Server = file:///mnt/storage/ultimate-repo/$repo/os/$arch

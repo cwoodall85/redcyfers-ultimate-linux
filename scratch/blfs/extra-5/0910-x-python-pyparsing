@@ -1,0 +1,11 @@
+#!/bin/bash
+# pyparsing: Flatpak's build runs a Python code generator
+# (variant-schema-compiler) that needs it. Pure Python, so the release wheel
+# is installed as it is. BLFS has no page for it.
+# Source: the project's release; sha256 recorded on first download here (TOFU).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/pyparsing/pyparsing/releases/download/3.3.3/pyparsing-3.3.3-py3-none-any.whl"
+FILE=pyparsing-3.3.3-py3-none-any.whl
+cd /sources
+echo "ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4  $FILE" | sha256sum -c -
+pip3 install --no-index --no-deps --no-user --root-user-action=ignore /sources/$FILE

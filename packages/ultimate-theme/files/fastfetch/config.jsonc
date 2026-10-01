@@ -1,0 +1,43 @@
+// Ultimate Linux's fastfetch layout: the network-"U" logo and four groups,
+// in the Ultimate Dark palette (neon mint, teal, dim green-grey). Copy to
+// ~/.config/fastfetch/config.jsonc to make your own.
+{
+  "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
+  "logo": {
+    "type": "file",
+    "source": "/usr/share/ultimate/fastfetch/logo.txt",
+    "color": { "1": "38;2;0;255;156", "2": "38;2;63;224;197" },
+    "padding": { "top": 4, "left": 1, "right": 4 }
+  },
+  "display": {
+    "separator": "  ",
+    "color": { "keys": "38;2;111;138;122", "title": "38;2;0;255;156", "output": "38;2;207;232;214" },
+    "key": { "width": 15 },
+    "bar": { "char": { "elapsed": "━", "total": "─" }, "width": 12 },
+    "percent": { "type": ["num", "bar"], "color": { "green": "38;2;0;255;156", "yellow": "38;2;245;197;66", "red": "38;2;255;77;109" } }
+  },
+  "modules": [
+    { "type": "title", "color": { "user": "38;2;0;255;156", "at": "38;2;111;138;122", "host": "38;2;63;224;197" } },
+        { "type": "custom", "format": "{#38;2;0;199;122}── system" },
+    { "type": "os", "key": "os", "format": "Ultimate Linux (from source)" },
+    { "type": "kernel", "key": "kernel" },
+    { "type": "uptime", "key": "uptime" },
+    { "type": "packages", "key": "packages" },
+    { "type": "shell", "key": "shell" },
+    { "type": "custom", "format": "{#38;2;0;199;122}── desktop" },
+    { "type": "de", "key": "session" },
+    { "type": "wm", "key": "windows" },
+    { "type": "display", "key": "display", "compactType": "original-with-refresh-rate" },
+    { "type": "terminal", "key": "terminal" },
+    { "type": "custom", "format": "{#38;2;0;199;122}── hardware" },
+    { "type": "cpu", "key": "cpu", "showPeCoreCount": true },
+    { "type": "gpu", "key": "gpu" },
+    { "type": "memory", "key": "memory" },
+    { "type": "disk", "key": "{mountpoint}", "folders": "/:/mnt/storage:/home" },
+    { "type": "battery", "key": "battery" },
+    { "type": "custom", "format": "{#38;2;0;199;122}── network" },
+    { "type": "localip", "key": "address", "showIpv4": true, "showIpv6": false, "showPrefixLen": true },
+    { "type": "wifi", "key": "wi-fi", "format": "{ssid}  {signal-quality}" },
+    "break"
+  ]
+}

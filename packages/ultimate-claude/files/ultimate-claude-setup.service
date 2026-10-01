@@ -1,0 +1,10 @@
+[Unit]
+Description=Register the Ultimate Linux system tools with Claude Code
+ConditionPathExists=!%h/.config/ultimate/claude-setup-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ultimate-claude-setup
+
+[Install]
+WantedBy=default.target

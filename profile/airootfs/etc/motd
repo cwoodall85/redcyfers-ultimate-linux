@@ -1,0 +1,10 @@
+
+  Ultimate Linux live.  Arch-based, with Claude built in.
+
+  Meta+Space           ask Claude from the top bar; its work shows on the desktop
+  ask <question>       ask Claude about this machine (read-only tools)
+  ask --login          sign in with your Claude subscription
+  claude               Claude Code, with the system tools already wired in
+  sudo archinstall --config /etc/ultimate/archinstall.json
+                       install to disk, with the networking tools preselected
+

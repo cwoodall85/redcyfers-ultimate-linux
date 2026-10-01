@@ -1,0 +1,22 @@
+# Not in the official Arch repos. Built from the upstream wheel; every
+# dependency is an official package (httpx2 included).
+pkgname=python-anthropic
+_name=anthropic
+pkgver=1.8.0
+pkgrel=1
+pkgdesc="Official Python SDK for the Claude API"
+arch=('any')
+url="https://github.com/anthropics/anthropic-sdk-python"
+license=('MIT')
+depends=('python' 'python-anyio' 'python-docstring-parser' 'python-httpx2'
+         'python-jiter' 'python-pydantic' 'python-sniffio'
+         'python-typing_extensions' 'python-distro')
+optdepends=('python-mcp: MCP conversion helpers')
+makedepends=('python-installer')
+source=("https://files.pythonhosted.org/packages/py3/${_name::1}/${_name}/${_name}-${pkgver}-py3-none-any.whl")
+sha256sums=('79a4516a21e64fd7b15be1a49ebf544bd6376c96a971a77365358823a2717bc6')
+noextract=("${_name}-${pkgver}-py3-none-any.whl")
+
+package() {
+  python -m installer --destdir="$pkgdir" "${_name}-${pkgver}-py3-none-any.whl"
+}

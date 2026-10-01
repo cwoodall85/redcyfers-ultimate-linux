@@ -1,0 +1,42 @@
+# Natively built packages that go into the image (scratch/native-layer.sh),
+# in install order. Build-only tools stay out: go, protoc-bin.
+# Never google-chrome: Google forbids redistributing it.
+linux-ultimate
+keyutils
+mokutil
+wl-clipboard
+fastfetch
+plymouth
+github-cli
+aws-cli
+jansson
+nftables
+conmon
+crun
+passt
+netavark
+aardvark-dns
+containers-common
+podman
+libslirp
+spice-protocol
+spice-server
+edk2-ovmf
+qemu
+rpcsvc-proto
+dnsmasq
+dmidecode
+libvirt
+python-libvirt
+osinfo-db-tools
+osinfo-db
+libosinfo
+python-libxml2
+python-six
+virt-install
+spice-gtk
+gtk-vnc
+libvirt-glib
+virt-viewer
+libei
+kdeconnect

@@ -1,0 +1,36 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# virt-install (and virt-clone, virt-xml) from virt-manager's release:
+# the command-line VM creation our test scripts use. The virt-manager GUI
+# itself is left out. Signed by Pavel Hrdina (522D64733007E18C).
+pkgname=virt-install
+pkgver=5.1.0
+pkgrel=1
+pkgdesc="Command-line tools for creating and editing libvirt virtual machines"
+arch=('any')
+url="https://virt-manager.org/"
+license=('GPL-2.0-or-later')
+depends=('Python' 'pygobject3' 'python-libvirt' 'python-libxml2' 'requests'
+         'libosinfo' 'qemu' 'libvirt')
+makedepends=('meson' 'docutils')
+source=("https://github.com/virt-manager/virt-manager/releases/download/v${pkgver}/virt-manager-${pkgver}.tar.xz")
+sha256sums=('ccfc44b6c1c0be8398beb687c675d9ea4ca1c721dfb67bd639209a7b0dec11b1')
+
+build() {
+  mkdir -p bin
+  printf '#!/usr/bin/python3\nfrom docutils.core import publish_cmdline\npublish_cmdline(writer_name="manpage")\n' > bin/rst2man
+  chmod +x bin/rst2man
+  export PATH="$srcdir/bin:$PATH"
+  meson setup build "virt-manager-$pkgver" --prefix=/usr -Dupdate-icon-cache=false \
+    -Dcompile-schemas=false -Dtests=disabled
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+  # Only the command-line tools: drop the GUI and what only it uses.
+  rm -f "$pkgdir/usr/bin/virt-manager"
+  rm -rf "$pkgdir/usr/share/virt-manager/virtManager" "$pkgdir/usr/share/virt-manager/ui" \
+    "$pkgdir/usr/share/applications" "$pkgdir/usr/share/icons" "$pkgdir/usr/share/metainfo" \
+    "$pkgdir/usr/share/glib-2.0" "$pkgdir/usr/share/man/man1/virt-manager.1" \
+    "$pkgdir/usr/share/virt-manager/icons"
+}

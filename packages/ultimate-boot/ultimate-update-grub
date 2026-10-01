@@ -1,0 +1,112 @@
+#!/bin/bash
+# ultimate-update-grub -- write the boot menu of an installed Ultimate Linux,
+# and keep the signed boot files on the EFI system partition current.
+#
+# Reads /etc/ultimate/boot.conf (written by ultimate-install):
+#   ROOT_UUID, ROOT_PARTUUID   the root filesystem
+#   ESP_UUID                   the EFI system partition (mounted at /boot/efi)
+#   EFI_DIR                    our directory on it, e.g. EFI/ultimate ("" = BIOS only)
+#   REMOVABLE                  1: also the firmware's fallback path EFI/BOOT
+#                              (a disk that is ours alone)
+#   KERNEL_ARGS                extra kernel arguments; default "quiet splash"
+#                              when Plymouth (the boot screen) is installed
+# Writes /boot/grub/grub.cfg (BIOS GRUB) and <ESP>/<EFI_DIR>/grub.cfg (the
+# signed GRUB reads the grub.cfg next to itself). The menu: every kernel in
+# /boot, newest first, with the CPU microcode images; other systems found on
+# the EFI partition (Fedora and other shim/GRUB distributions, Windows); the
+# firmware settings. The newest kernel also gets a text-boot entry (no boot
+# screen, every message shown), for when something goes wrong. Run by a pacman hook after kernel or boot-file updates.
+set -euo pipefail
+conf=/etc/ultimate/boot.conf
+[[ -f $conf ]] || exit 0            # the live image: its menu is fixed
+# shellcheck source=/dev/null
+. $conf
+ESP=/boot/efi
+S=/usr/lib/ultimate/secureboot
+if [[ -z ${KERNEL_ARGS+set} ]]; then
+  KERNEL_ARGS=""
+  [[ -x /usr/sbin/plymouthd ]] && KERNEL_ARGS="quiet splash"
+fi
+
+menu() {
+  echo "# Written by ultimate-update-grub; edit /etc/ultimate/boot.conf, not this."
+  echo "set default=0"
+  echo "set timeout=5"
+  echo "insmod part_gpt"
+  echo "insmod part_msdos"
+  echo "insmod ext2"
+  echo "insmod all_video"
+  echo "set gfxpayload=keep"
+  echo "search --no-floppy --fs-uuid --set=root $ROOT_UUID"
+  local ucode="" u k
+  for u in amd-ucode.img intel-ucode.img; do [[ -f /boot/$u ]] && ucode="$ucode /boot/$u"; done
+  local first=1
+  for k in $(cd /boot && ls -t vmlinuz-* 2>/dev/null); do
+    echo "menuentry \"Ultimate Linux (kernel ${k#vmlinuz-})\" {"
+    echo "    search --no-floppy --fs-uuid --set=root $ROOT_UUID"
+    echo "    linux /boot/$k root=PARTUUID=$ROOT_PARTUUID rootwait ro${KERNEL_ARGS:+ $KERNEL_ARGS}"
+    [[ -n $ucode ]] && echo "    initrd$ucode"
+    echo "}"
+    if ((first)) && [[ -n $KERNEL_ARGS ]]; then
+      echo "menuentry \"Ultimate Linux (kernel ${k#vmlinuz-}, text boot)\" {"
+      echo "    search --no-floppy --fs-uuid --set=root $ROOT_UUID"
+      echo "    linux /boot/$k root=PARTUUID=$ROOT_PARTUUID rootwait ro plymouth.enable=0"
+      [[ -n $ucode ]] && echo "    initrd$ucode"
+      echo "}"
+    fi
+    first=0
+  done
+  # Other systems on the EFI partition (UEFI only).
+  if [[ -n ${EFI_DIR:-} && -n ${ESP_UUID:-} ]] && mountpoint -q $ESP; then
+    local d name loader
+    for d in $ESP/EFI/*/; do
+      name=$(basename "$d")
+      case ${name,,} in boot|ultimate) continue ;; esac
+      # Fedora: its own GRUB, not its shim. Our shim is Fedora's build, so
+      # it already trusts Fedora's signature; Fedora's GRUB checks Fedora's
+      # kernels through it. (Starting a second shim from here stalls.)
+      loaders="shimx64.efi grubx64.efi Boot/bootmgfw.efi"
+      [[ ${name,,} == fedora ]] && loaders="grubx64.efi shimx64.efi"
+      loader=""
+      for l in $loaders; do
+        [[ -f $d$l ]] && { loader=$l; break; }
+      done
+      [[ -n $loader ]] || continue
+      case ${name,,} in
+        fedora) label="Fedora Linux" ;;
+        microsoft) label="Windows" ;;
+        *) label=${name^} ;;
+      esac
+      echo "menuentry \"$label\" {"
+      echo "    search --no-floppy --fs-uuid --set=root $ESP_UUID"
+      echo "    chainloader /EFI/$name/$loader"
+      echo "}"
+    done
+    echo 'menuentry "UEFI firmware settings" {'
+    echo '    fwsetup'
+    echo '}'
+  fi
+}
+
+mkdir -p /boot/grub
+menu > /boot/grub/grub.cfg.new && mv /boot/grub/grub.cfg.new /boot/grub/grub.cfg
+
+if [[ -n ${EFI_DIR:-} ]]; then
+  mountpoint -q $ESP || mount $ESP 2>/dev/null || { echo "ultimate-update-grub: $ESP is not mounted" >&2; exit 1; }
+  dirs=("$ESP/$EFI_DIR")
+  [[ ${REMOVABLE:-0} == 1 ]] && dirs+=("$ESP/EFI/BOOT")
+  for d in "${dirs[@]}"; do
+    mkdir -p "$d"
+    if [[ -f $S/grubx64.efi ]]; then
+      # the signed chain: shim, our GRUB, MokManager, our certificate
+      install -m644 $S/grubx64.efi $S/mmx64.efi $S/ultimate-mok.cer "$d/"
+      if [[ $d == */EFI/BOOT ]]; then
+        install -m644 $S/shimx64.efi "$d/BOOTX64.EFI"
+      else
+        install -m644 $S/shimx64.efi "$d/shimx64.efi"
+      fi
+    fi
+    menu > "$d/grub.cfg.new" && mv "$d/grub.cfg.new" "$d/grub.cfg"
+  done
+fi
+echo "ultimate-update-grub: menu written ($(grep -c '^menuentry' /boot/grub/grub.cfg) entries)"

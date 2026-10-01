@@ -1,0 +1,21 @@
+#!/bin/bash
+# ngrep -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://github.com/jpr5/ngrep/archive/refs/tags/v1.49.0/ngrep-1.49.0.tar.gz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/jpr5/ngrep/archive/refs/tags/v1.49.0/ngrep-1.49.0.tar.gz"
+FILE=ngrep-1.49.0.tar.gz
+cd /sources
+echo "6c94b31681316b7469a3ace92d2aeec7c9f490bd6782453dff2ade0e289a3348  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-ngrep
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr --with-pcap-includes=/usr/include --enable-ipv6 --enable-pcre2
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

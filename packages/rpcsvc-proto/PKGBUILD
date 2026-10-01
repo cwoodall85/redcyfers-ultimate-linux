@@ -1,0 +1,24 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# rpcsvc-proto: rpcgen and the rpcsvc headers glibc no longer ships;
+# libvirt generates its RPC code with rpcgen.
+pkgname=rpcsvc-proto
+pkgver=1.4.4
+pkgrel=1
+pkgdesc="rpcsvc protocol definitions and rpcgen"
+arch=('x86_64')
+url="https://github.com/thkukuk/rpcsvc-proto"
+license=('BSD-3-Clause')
+depends=('glibc')
+source=("https://github.com/thkukuk/rpcsvc-proto/releases/download/v${pkgver}/rpcsvc-proto-${pkgver}.tar.xz")
+sha256sums=('81c3aa27edb5d8a18ef027081ebb984234d5b5860c65bd99d4ac8f03145a558b')
+
+build() {
+  cd "rpcsvc-proto-$pkgver"
+  ./configure --prefix=/usr
+  make
+}
+
+package() {
+  cd "rpcsvc-proto-$pkgver"
+  make DESTDIR="$pkgdir" install
+}

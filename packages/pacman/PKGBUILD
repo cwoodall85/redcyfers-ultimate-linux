@@ -1,0 +1,64 @@
+# pacman, rebuilt with signature checking (gpgme). The base system's pacman
+# is built before GnuPG exists, so meson leaves gpgme out, and pacman then
+# rejects any SigLevel but Never. With the desktop layer's gpgme installed,
+# this build can verify the Ultimate repositories' signatures.
+# Same recipe as scratch/pkgmngt/packageManager.xml otherwise.
+#
+# -3: downloads run as the unprivileged alpm user, in a separate process
+# (DownloadUser, as on Arch). Downloading in the main process leaves curl's
+# threaded resolver behind, and the fork for ldconfig/scriptlets after an
+# https download then deadlocks in the child (seen 2026-09-30 on the first
+# update from our hosted repository).
+# -4: DisableSandboxFilesystem, because our kernel has no Landlock and pacman
+# then refuses to download at all. The download child still runs as alpm,
+# with the syscall filter. Drop it once linux-ultimate enables
+# CONFIG_SECURITY_LANDLOCK (and adds landlock to CONFIG_LSM).
+# -5: pacman.conf lists the Ultimate repositories (signed; servers from
+# ultimate-mirrorlist), so an installed system updates with pacman -Syu.
+# Before, they had to be added by hand.
+pkgname=pacman
+pkgver=7.1.0
+pkgrel=5
+pkgdesc="A library-based package manager with dependency support"
+arch=('x86_64')
+url="https://www.archlinux.org/pacman/"
+license=('GPL-2.0-or-later')
+depends=('gpgme' 'libarchive' 'curl' 'openssl' 'ultimate-keyring' 'ultimate-mirrorlist')
+makedepends=('meson' 'ninja')
+backup=('etc/pacman.conf' 'etc/makepkg.conf')
+install=pacman.install
+source=("https://gitlab.archlinux.org/-/project/19637/uploads/f7f47e176b9ad29a31a0704e5df8fc38/pacman-$pkgver.tar.xz")
+md5sums=('90e728aaed08b25d88c1ad0ad952f8ed')
+options=('!strip')
+
+build() {
+  cd "pacman-$pkgver"
+  meson setup build --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+    -Dcrypto=openssl -Ddoc=disabled -Dgpgme=enabled
+  ninja -C build
+}
+
+package() {
+  cd "pacman-$pkgver"
+  DESTDIR="$pkgdir" ninja -C build install
+  sed -e 's/\([^!]\)strip/\1!strip/' -e 's/\([^!]\)zipman/\1!zipman/' \
+      -e 's/\([^!]\)libtool/\1!libtool/' -i "$pkgdir/etc/makepkg.conf"
+  cat >> "$pkgdir/etc/makepkg.conf" <<EOT
+BUILDDIR=/sources
+PKGDEST=/var/lib/packages
+PACKAGER="RedCyfer's Ultimate Linux <noreply@redcyfer.com>"
+PKGEXT=.pkg.tar.xz
+EOT
+  cat >> "$pkgdir/etc/pacman.conf" <<EOT
+DBPath   = /var/lib/pacman/
+CacheDir = /var/cache/pacman/pkg/
+LogFile  = /var/log/pacman.log
+SigLevel = Never
+EOT
+  sed -i 's/^#DownloadUser = alpm$/DownloadUser = alpm\nDisableSandboxFilesystem/' "$pkgdir/etc/pacman.conf"
+  for r in ultimate ultimate-desktop ultimate-base; do
+    printf '\n[%s]\nSigLevel = Required DatabaseRequired\nInclude = /etc/pacman.d/ultimate-mirrorlist\n' "$r"
+  done >> "$pkgdir/etc/pacman.conf"
+  echo 'u alpm - "pacman downloads" / /usr/sbin/nologin' |
+    install -Dm644 /dev/stdin "$pkgdir/usr/lib/sysusers.d/alpm.conf"
+}

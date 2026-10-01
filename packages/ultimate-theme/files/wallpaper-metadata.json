@@ -1,0 +1,8 @@
+{
+    "KPlugin": {
+        "Authors": [{ "Name": "Ultimate Linux" }],
+        "Id": "UltimateCognition",
+        "License": "MIT",
+        "Name": "Ultimate Cognition"
+    }
+}

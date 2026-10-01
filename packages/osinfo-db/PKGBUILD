@@ -1,0 +1,19 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# osinfo-db: the database of operating systems, hypervisors and install
+# media that virt-install's --osinfo picks defaults from. Signed by Pavel
+# Hrdina (522D64733007E18C); checksum pinned after gpg --verify.
+pkgname=osinfo-db
+pkgver=20260812
+pkgrel=1
+pkgdesc="Operating system and hypervisor information database"
+arch=('any')
+url="https://libosinfo.org/"
+license=('GPL-2.0-or-later')
+makedepends=('osinfo-db-tools')
+source=("osinfo-db-${pkgver}.tar.xz::https://gitlab.com/api/v4/projects/libosinfo%2Fosinfo-db/packages/generic/release-assets/v${pkgver}/osinfo-db-${pkgver}%2Etar%2Exz")
+noextract=("osinfo-db-${pkgver}.tar.xz")
+sha256sums=('f13ed6e1e480b5266d39cad7f0010febdf0265dfc45579de2fb34543bc6b35de')
+
+package() {
+  osinfo-db-import --root "$pkgdir" --dir /usr/share/osinfo "osinfo-db-${pkgver}.tar.xz"
+}

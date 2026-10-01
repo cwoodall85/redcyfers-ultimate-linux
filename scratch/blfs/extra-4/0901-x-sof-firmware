@@ -1,0 +1,15 @@
+#!/bin/bash
+# Sound Open Firmware: the DSP firmware and topologies Intel laptop audio
+# needs (Tiger Lake onward; Meteor/Lunar/Panther Lake use the IPC4 layout).
+# Source: the project's release tarball; sha256 from the GitHub release.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/thesofproject/sof-bin/releases/download/v2026.09.1/sof-bin-2026.09.1.tar.gz"
+FILE=sof-bin-2026.09.1.tar.gz
+cd /sources
+echo "42ce40ec98f366365eab8e046d779b416d80b6ff2513b8f6be2a61a88e679b73  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-sof
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd sof-bin-2026.09.1
+FW_DEST=/usr/lib/firmware/intel TOOLS_DEST=/usr/bin ./install.sh
+cd / && rm -rf $W

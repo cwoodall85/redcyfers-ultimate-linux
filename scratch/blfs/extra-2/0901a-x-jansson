@@ -1,0 +1,19 @@
+#!/bin/bash
+# jansson -- JSON library; nftables needs it for `nft -j`, which Podman's
+# netavark and libvirt drive nftables through. Not in BLFS.
+# Source: https://github.com/akheron/jansson/releases/download/v2.15.1/jansson-2.15.1.tar.gz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/akheron/jansson/releases/download/v2.15.1/jansson-2.15.1.tar.gz"
+FILE=jansson-2.15.1.tar.gz
+cd /sources
+echo "0c7114dc0b2d22a670724a1f95922029d7077c19dbf79a584cb8084d2f267f2f  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-jansson
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd jansson-2.15.1
+./configure --prefix=/usr --disable-static
+make -j"$(nproc)"
+make install
+cd / && rm -rf $W
+ldconfig

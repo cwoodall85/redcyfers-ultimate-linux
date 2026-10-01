@@ -1,0 +1,10 @@
+post_upgrade() {
+  if [[ ! -f /etc/pacman.d/gnupg/pubring.gpg && ! -f /etc/pacman.d/gnupg/pubring.kbx ]]; then
+    pacman-key --init >/dev/null 2>&1
+  fi
+  pacman-key --populate ultimate
+}
+
+post_install() {
+  post_upgrade
+}

@@ -1,0 +1,24 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# gtk-vnc: VNC viewer widget; virt-viewer shows VNC-console guests with it.
+# Checksum matches GNOME's published .sha256sum.
+pkgname=gtk-vnc
+pkgver=1.5.0
+pkgrel=1
+pkgdesc="VNC viewer widget for GTK"
+arch=('x86_64')
+url="https://gitlab.gnome.org/GNOME/gtk-vnc"
+license=('LGPL-2.1-or-later')
+depends=('gtk3' 'gnutls' 'libgcrypt' 'cyrus-sasl' 'zlib')
+makedepends=('meson')
+source=("https://download.gnome.org/sources/gtk-vnc/${pkgver%.*}/gtk-vnc-${pkgver}.tar.xz")
+sha256sums=('c0beb4747528ad931da43acc567c6a0190f7fc624465571ed9ccece02c34dd23')
+
+build() {
+  meson setup build "gtk-vnc-$pkgver" --prefix=/usr --buildtype=release \
+    -Dintrospection=disabled -Dwith-vala=disabled -Dpulseaudio=disabled -Dsasl=enabled -Dgi-docs=disabled
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

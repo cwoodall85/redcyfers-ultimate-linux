@@ -1,0 +1,5 @@
+# Live session only (this skel is the live ISO's, not an installed
+# system's): don't lock the screen when idle.
+[Daemon]
+Autolock=false
+LockOnResume=false

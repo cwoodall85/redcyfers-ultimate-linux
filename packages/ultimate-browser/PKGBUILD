@@ -1,0 +1,27 @@
+# Ultimate Browser, from a snapshot of its git repository (git archive of
+# HEAD, so only committed work), like ultimate-mail and ultimate-ssh. Make
+# the snapshot with:
+#   git -C ~/projects/ultimate-browser archive --prefix=ultimate-browser/ -o "$PWD/ultimate-browser.tar.gz" HEAD
+#   git -C ~/projects/ultimate-browser describe --always > VERSION   (or the project version)
+pkgname=ultimate-browser
+pkgver=$(<"$startdir/VERSION")
+pkgrel=1
+pkgdesc="Ultimate Linux's web browser: Chromium (QtWebEngine) with Claude built in"
+arch=('x86_64')
+url="https://github.com/cwoodall85/redcyfers-ultimate-browser"
+license=('MIT')
+depends=('qt6-webengine' 'ultimate-claude')
+optdepends=('ultimate-mail: send pages to your phone through Ultimate Chat')
+makedepends=('cmake' 'ninja')
+source=("ultimate-browser.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cmake -B build -S ultimate-browser -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_PREFIX_PATH=/opt/qt6
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

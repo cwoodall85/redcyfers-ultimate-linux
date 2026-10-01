@@ -1,0 +1,39 @@
+Tool sets for the Claude bar, `ask` and ultimate-mcp
+====================================================
+
+Every *.py file in this directory adds tools that Claude can use when you ask
+it something from the Claude bar (Meta+Space), `ask`, or Claude Code through
+ultimate-mcp. Packages install their files here (ultimate-redcyfer, for
+example); nothing else needs changing.
+
+A file is a Python module with:
+
+    TOOLS = [fn, ...]
+        Plain functions. The docstring's first part says what the tool does;
+        its "Args:" section describes each parameter. Parameters have type
+        annotations (str, int, float, bool). Each returns text.
+
+    INSTRUCTIONS = "..."            (optional)
+        A sentence or two telling Claude when to use these tools.
+
+Rules
+  * Read-only. Look, never change: no writes, no restarts, no requests that
+    modify anything. The Claude bar promises that nothing it runs changes
+    the machine or anything else.
+  * Bound your time. Use ultimate_claude.plugins.run(argv, timeout=...) for
+    commands; give network calls a short timeout.
+  * Names are global: a tool whose name is already taken is skipped.
+  * A file that fails to import is skipped with a warning; the built-in
+    tools always load.
+
+Example (/usr/lib/ultimate/mcp.d/example.py):
+
+    from ultimate_claude.plugins import run
+
+    INSTRUCTIONS = "For questions about the backup job, use backup_status."
+
+    def backup_status() -> str:
+        """When the nightly backup last ran and whether it succeeded."""
+        return run(["systemctl", "status", "--no-pager", "backup.service"])
+
+    TOOLS = [backup_status]

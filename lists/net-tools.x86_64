@@ -1,0 +1,57 @@
+# Networking tools, installed on the live ISO AND on every system the
+# installer puts down. One package per line; all from the official Arch
+# repositories, so an installed system needs nothing from ours to get them.
+# tools/container-build.sh adds this list to the ISO's package list and to
+# the installer config (/etc/ultimate/archinstall.json) at build time.
+
+# classic commands: ifconfig, netstat, route, arp / telnet, hostname, ftp
+net-tools
+inetutils
+# DNS and lookups: dig, host, nslookup / whois / a friendlier dig
+bind
+whois
+doggo
+# path and latency
+traceroute
+mtr
+trippy
+gping
+# discovery and scanning
+nmap
+arp-scan
+# capture and inspection
+tcpdump
+ngrep
+wireshark-qt
+termshark
+# throughput and bandwidth: per-process, per-interface, history
+iperf3
+nethogs
+iftop
+bmon
+bandwhich
+nload
+vnstat
+speedtest-cli
+# links and interfaces
+ethtool
+iw
+ipcalc
+# transfer and plumbing
+curl
+wget
+openbsd-netcat
+socat
+rsync
+lsof
+# remote access
+openssh
+mosh
+sshpass
+# VPN
+wireguard-tools
+openvpn
+networkmanager-openvpn
+# firewall and connection tracking
+nftables
+conntrack-tools

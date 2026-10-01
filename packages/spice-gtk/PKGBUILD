@@ -1,0 +1,26 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# spice-gtk: the GTK widget/client library virt-viewer shows SPICE
+# consoles with. Signed by Victor Toso (97D9123DE37A484F).
+pkgname=spice-gtk
+pkgver=0.42
+pkgrel=2
+pkgdesc="GTK client and libraries for SPICE remote desktop servers"
+arch=('x86_64')
+url="https://www.spice-space.org/"
+license=('LGPL-2.1-or-later')
+depends=('gtk3' 'gst10-plugins-base' 'libepoxy' 'opus' 'libjpeg' 'pixman' 'openssl' 'zlib' 'cyrus-sasl' 'libcap-ng')
+makedepends=('spice-protocol' 'meson' 'Python')
+source=("https://www.spice-space.org/download/gtk/spice-gtk-${pkgver}.tar.xz")
+sha256sums=('9380117f1811ad1faa1812cb6602479b6290d4a0d8cc442d44427f7f6c0e7a58')
+
+build() {
+  meson setup build "spice-gtk-$pkgver" --prefix=/usr --buildtype=release \
+    -Dusbredir=disabled -Dsmartcard=disabled -Dpolkit=disabled -Dwebdav=disabled \
+    -Dintrospection=disabled -Dvapi=disabled -Dgtk_doc=disabled -Dsasl=enabled \
+    -Dopus=enabled -Degl=enabled -Dbuiltin-mjpeg=true
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

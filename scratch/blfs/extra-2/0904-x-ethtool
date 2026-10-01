@@ -1,0 +1,21 @@
+#!/bin/bash
+# ethtool -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://www.kernel.org/pub/software/network/ethtool/ethtool-7.1.tar.xz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://www.kernel.org/pub/software/network/ethtool/ethtool-7.1.tar.xz"
+FILE=ethtool-7.1.tar.xz
+cd /sources
+echo "4d78c26edc0255bc92f4b995b5fd66108d75ff966ed4694f6025a6d370bc2496  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-ethtool
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

@@ -1,0 +1,9 @@
+#!/bin/bash
+# Create the live session's user. Done at boot rather than by shipping
+# /etc/passwd and /etc/group in the overlay, because those files belong to
+# the filesystem package and replacing them wholesale drops every system
+# group the packages created.
+set -eu
+id live >/dev/null 2>&1 && exit 0
+useradd -m -G wheel,audio,video,input,network -s /bin/zsh -c "Live user" live
+passwd -d live >/dev/null

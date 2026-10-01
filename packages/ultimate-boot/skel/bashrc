@@ -1,0 +1,26 @@
+# ~/.bashrc -- interactive shells (every terminal window).
+
+# System-wide aliases and colours (ls, grep).
+[ -f /etc/bashrc ] && . /etc/bashrc
+
+# Your own programs.
+case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) PATH=$HOME/.local/bin:$PATH ;; esac
+export PATH
+
+# user@host:directory$ -- green for you, red for root.
+if [[ $EUID == 0 ]]; then
+  PS1='\[\e[1;31m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]# '
+else
+  PS1='\[\e[1;32m\]\u@\h\[\e[0m\]:\[\e[1;34m\]\w\[\e[0m\]\$ '
+fi
+
+# Your own additions: one file each in ~/.bashrc.d.
+if [ -d ~/.bashrc.d ]; then
+  for rc in ~/.bashrc.d/*; do [ -f "$rc" ] && . "$rc"; done
+  unset rc
+fi
+
+# The system summary (fastfetch, in the Ultimate layout from
+# /etc/xdg/fastfetch), in terminals only -- never for scp or ssh commands.
+# Delete these lines to stop it.
+[[ $- == *i* ]] && command -v fastfetch >/dev/null && fastfetch

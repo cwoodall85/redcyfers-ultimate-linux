@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Ultimate Linux"
+            }
+        ],
+        "Category": "System Information",
+        "Description": "Download and upload, with history",
+        "Icon": "network-wired",
+        "Id": "org.ultimatelinux.network",
+        "License": "MIT",
+        "Name": "Ultimate Network",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

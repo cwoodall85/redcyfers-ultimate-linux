@@ -1,0 +1,50 @@
+#!/bin/bash
+# ultimate-sysusers -- create the system users and groups that packages
+# declare in sysusers.d. The from-source systemd was built without
+# systemd-sysusers, so nothing else reads these files (flatpak's system
+# helper, for one, needs its "flatpak" user).
+#
+#   ultimate-sysusers [ROOT]     (run as root; ROOT for an image being built)
+# Handles the "u" and "g" lines; "m" (add to group) too. Existing entries
+# are left alone.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:$PATH
+R=${1:-}
+run() { if [[ -n $R ]]; then chroot "$R" "$@"; else "$@"; fi; }
+has_user() { grep -q "^$1:" "$R/etc/passwd"; }
+has_group() { grep -q "^$1:" "$R/etc/group"; }
+nologin=/usr/sbin/nologin; [[ -x $R$nologin ]] || nologin=/bin/false
+shopt -s nullglob
+declare -A seen
+for f in "$R"/etc/sysusers.d/*.conf "$R"/usr/lib/sysusers.d/*.conf; do
+  b=${f##*/}; [[ -n ${seen[$b]:-} ]] && continue; seen[$b]=1
+  # /etc overrides /usr/lib by file name, as in systemd.
+  [[ $f == "$R"/usr/lib/* && -e $R/etc/sysusers.d/$b ]] && continue
+  while read -r line; do
+    [[ $line =~ ^[[:space:]]*(#|$) ]] && continue
+    eval "set -- $line"
+    type=$1 name=$2 id=${3:--} gecos=${4:--} home=${5:--} shell=${6:--}
+    case $type in
+      g) has_group "$name" && continue
+         args=(-r); [[ $id =~ ^[0-9]+$ ]] && args+=(-g "$id")
+         run groupadd "${args[@]}" "$name" && echo "group $name" ;;
+      u) has_user "$name" && continue
+         args=(-r -M -d "$([[ $home == - ]] && echo / || echo "$home")"
+               -s "$([[ $shell == - ]] && echo $nologin || echo "$shell")")
+         [[ $gecos != - ]] && args+=(-c "$gecos")
+         if [[ $id =~ ^([0-9]+):([0-9A-Za-z_-]+)$ ]]; then
+           args+=(-u "${BASH_REMATCH[1]}" -g "${BASH_REMATCH[2]}")
+         elif [[ $id =~ ^[0-9]+$ ]]; then
+           args+=(-u "$id")
+           has_group "$name" || run groupadd -r -g "$id" "$name" 2>/dev/null || run groupadd -r "$name"
+           args+=(-g "$name")
+         else
+           has_group "$name" || run groupadd -r "$name"
+           args+=(-g "$name")
+         fi
+         run useradd "${args[@]}" "$name" && echo "user $name" ;;
+      m) has_group "$id" || run groupadd -r "$id"
+         run usermod -aG "$id" "$name" ;;
+    esac
+  done < "$f"
+done

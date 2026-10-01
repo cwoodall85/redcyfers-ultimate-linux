@@ -1,0 +1,10 @@
+out/
+work/
+*.pkg.tar.zst
+*.iso
+packages/*/*/__pycache__/
+packages/*/src/
+packages/*/pkg/
+scratch/out/
+scratch/out/books/
+scratch/out/netsrc/

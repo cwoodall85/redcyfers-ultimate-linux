@@ -1,0 +1,34 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# containers-common: the shared configuration Podman (and Buildah, Skopeo)
+# read -- containers.conf, the seccomp profile, registries, image trust
+# policy, storage -- from the container-libs monorepo.
+pkgname=containers-common
+pkgver=0.69.2
+pkgrel=1
+pkgdesc="Configuration files for Podman and other container tools"
+arch=('any')
+url="https://github.com/podman-container-tools/container-libs"
+license=('Apache-2.0')
+backup=('etc/containers/containers.conf' 'etc/containers/registries.conf'
+        'etc/containers/policy.json' 'etc/containers/storage.conf'
+        'etc/containers/registries.d/default.yaml')
+source=("container-libs-common-v${pkgver}.tar.gz::https://github.com/podman-container-tools/container-libs/archive/refs/tags/common/v${pkgver}.tar.gz")
+sha256sums=('76ac2130ee222adf0dca4551ae79637e6c4ece9dc024bcbe166dfca1e20b87dd')
+
+package() {
+  cd "container-libs-common-v$pkgver"
+  install -Dm644 common/pkg/config/containers.conf "$pkgdir/etc/containers/containers.conf"
+  install -Dm644 common/pkg/seccomp/seccomp.json "$pkgdir/usr/share/containers/seccomp.json"
+  install -Dm644 common/rpm/policy.json "$pkgdir/etc/containers/policy.json"
+  install -Dm644 image/default.yaml "$pkgdir/etc/containers/registries.d/default.yaml"
+  install -Dm644 storage/storage.conf "$pkgdir/etc/containers/storage.conf"
+  sed -i 's|^driver = ""|driver = "overlay"|' "$pkgdir/etc/containers/storage.conf"
+  # Upstream's registries.conf is all comments; short names (podman pull
+  # alpine) resolve on Docker Hub, as on Arch.
+  install -Dm644 image/registries.conf "$pkgdir/etc/containers/registries.conf"
+  printf '\n# Ultimate Linux: short image names resolve on Docker Hub.\nunqualified-search-registries = ["docker.io"]\n' \
+    >> "$pkgdir/etc/containers/registries.conf"
+  install -d "$pkgdir/etc/containers/containers.conf.d" "$pkgdir/etc/containers/registries.conf.d" \
+    "$pkgdir/var/lib/containers"
+  install -Dm644 common/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE" 2>/dev/null || true
+}

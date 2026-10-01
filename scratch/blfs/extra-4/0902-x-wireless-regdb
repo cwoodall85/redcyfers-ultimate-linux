@@ -1,0 +1,15 @@
+#!/bin/bash
+# wireless-regdb: the Wi-Fi regulatory database cfg80211 loads as firmware
+# (without it every country is "world" and 5/6 GHz channels are limited).
+# Source: kernel.org; sha256 recorded on first download here (TOFU).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://mirrors.edge.kernel.org/pub/software/network/wireless-regdb/wireless-regdb-2026.09.03.tar.xz"
+FILE=wireless-regdb-2026.09.03.tar.xz
+cd /sources
+echo "b22e0901227b820cd1c280abe681a15b773a5103a5e10dc442e94ebb34cbf58d  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-regdb
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd wireless-regdb-2026.09.03
+install -m644 regulatory.db regulatory.db.p7s /usr/lib/firmware/
+cd / && rm -rf $W

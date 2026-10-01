@@ -1,0 +1,21 @@
+#!/bin/bash
+# sshpass -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://downloads.sourceforge.net/sshpass/sshpass-1.10.tar.gz
+# Checksum (sha256) from Arch's package recipe; verified on download.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://downloads.sourceforge.net/sshpass/sshpass-1.10.tar.gz"
+FILE=sshpass-1.10.tar.gz
+cd /sources
+echo "ad1106c203cbb56185ca3bad8c6ccafca3b4064696194da879f81c8d7bdfeeda  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-sshpass
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

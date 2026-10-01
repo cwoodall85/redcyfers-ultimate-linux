@@ -1,0 +1,48 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# netavark: Podman's network stack (bridges, nftables rules, port
+# forwarding). Needs protoc at build time (protoc-bin).
+pkgname=netavark
+pkgver=2.1.0
+pkgrel=1
+pkgdesc="Container network stack for Podman"
+arch=('x86_64')
+url="https://github.com/containers/netavark"
+license=('Apache-2.0')
+depends=('glibc' 'nftables')
+makedepends=('protoc-bin')
+options=('!lto')
+source=("netavark-${pkgver}.tar.gz::https://github.com/containers/netavark/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('96677048168ddd1abe313e4c2e17f1cace72b60ee1bac8ca12a4bd7dfcadfbbb')
+
+build() {
+  cd "netavark-$pkgver"
+  export PROTOC=${PROTOC:-/opt/protoc/bin/protoc}
+  [[ -x $PROTOC ]] || PROTOC=$(command -v protoc)
+  cargo build --release --locked
+}
+
+package() {
+  cd "netavark-$pkgver"
+  install -Dm755 target/release/netavark "$pkgdir/usr/lib/podman/netavark"
+  install -Dm644 contrib/systemd/system/netavark-dhcp-proxy.socket \
+    "$pkgdir/usr/lib/systemd/system/netavark-dhcp-proxy.socket"
+  for u in contrib/systemd/system/*.service.in; do
+    n=${u##*/}; n=${n%.in}
+    sed 's|@@NETAVARK@@|/usr/lib/podman/netavark|g' "$u" | install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/$n"
+  done
+  # Rootless Podman builds its networks inside a user namespace, and the
+  # kernel won't auto-load modules from there: without nft_nat every
+  # dnat rule fails with "Operation not supported". Load them at boot.
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/modules-load.d/netavark.conf" <<'CONF'
+# netavark (Podman networks), rootless: the kernel can't load these on demand
+nf_tables
+nft_chain_nat
+nft_nat
+nft_masq
+nft_ct
+nft_fib_inet
+nft_reject_inet
+veth
+bridge
+CONF
+}

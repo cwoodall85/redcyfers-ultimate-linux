@@ -1,0 +1,73 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# libvirt: the virtualization API and daemons (virsh, virtqemud,
+# virtnetworkd...) the distro's test VMs are driven through -- QEMU/KVM
+# driver, NAT networks on nftables, directory storage pools. Release
+# signed by Jiri Denemark (453B65310595562855471199CA68BE8010084C9C);
+# checksum pinned after gpg --verify passed.
+pkgname=libvirt
+pkgver=12.7.0
+pkgrel=1
+pkgdesc="API for controlling virtualization engines (QEMU/KVM)"
+arch=('x86_64')
+url="https://libvirt.org/"
+license=('LGPL-2.1-or-later' 'GPL-2.0-or-later')
+depends=('qemu' 'glib2' 'libxml2' 'gnutls' 'libtirpc' 'json-c' 'libnl' 'libcap-ng'
+         'libssh2' 'libpcap' 'polkit' 'readline' 'dbus' 'dnsmasq' 'dmidecode'
+         'nftables' 'iproute2' 'systemd' 'acl' 'attr' 'fuse3' 'cyrus-sasl' 'curl')
+makedepends=('rpcsvc-proto' 'meson' 'ninja' 'Python' 'docutils')
+backup=('etc/libvirt/libvirtd.conf' 'etc/libvirt/virtqemud.conf' 'etc/libvirt/qemu.conf'
+        'etc/libvirt/virtnetworkd.conf' 'etc/libvirt/network.conf' 'etc/libvirt/libvirt.conf')
+source=("https://download.libvirt.org/libvirt-${pkgver}.tar.xz")
+sha256sums=('7ec1a04e7e4f4069353d4daac117bbe869287f5b202695de61fe1b079efb6cb6')
+
+build() {
+  # docutils is here as a module only; give meson the rst2* commands.
+  mkdir -p bin
+  for w in html5:rst2html5 manpage:rst2man; do
+    printf '#!/usr/bin/python3\nfrom docutils.core import publish_cmdline\npublish_cmdline(writer_name="%s")\n' "${w%%:*}" > "bin/${w#*:}"
+    chmod +x "bin/${w#*:}"
+  done
+  export PATH="$srcdir/bin:$PATH"
+  meson setup build "libvirt-$pkgver" --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+    --libexecdir=/usr/lib/libvirt --buildtype=release \
+    -Drunstatedir=/run -Dinit_script=systemd -Ddocs=enabled -Dtests=disabled \
+    -Dexpensive_tests=disabled -Dselinux=disabled -Dapparmor=disabled \
+    -Dsecdriver_selinux=disabled -Dsecdriver_apparmor=disabled \
+    -Ddriver_qemu=enabled -Ddriver_network=enabled -Ddriver_libvirtd=enabled \
+    -Ddriver_remote=enabled -Ddriver_secrets=enabled -Ddriver_interface=disabled \
+    -Ddriver_lxc=disabled -Ddriver_ch=disabled -Ddriver_libxl=disabled -Ddriver_vbox=disabled \
+    -Ddriver_esx=disabled -Ddriver_hyperv=disabled -Ddriver_openvz=disabled \
+    -Ddriver_vmware=disabled -Ddriver_vz=disabled -Ddriver_bhyve=disabled \
+    -Dstorage_fs=enabled -Dstorage_lvm=disabled -Dstorage_disk=disabled -Dstorage_iscsi=disabled \
+    -Dstorage_iscsi_direct=disabled -Dstorage_mpath=disabled -Dstorage_rbd=disabled \
+    -Dstorage_gluster=disabled -Dstorage_zfs=disabled -Dstorage_vstorage=disabled -Dstorage_scsi=enabled \
+    -Dfirewalld=disabled -Dfirewall_backend_priority=nftables \
+    -Dqemu_user=libvirt-qemu -Dqemu_group=libvirt-qemu \
+    -Dnumactl=disabled -Dnumad=disabled -Dsanlock=disabled -Dwireshark_dissector=disabled \
+    -Dnetcf=disabled -Dopenwsman=disabled -Dglusterfs=disabled -Dlibiscsi=disabled \
+    -Dnls=disabled -Dnbdkit=disabled -Dsysctl_config=enabled -Dnss=enabled \
+    -Dpolkit=enabled -Dudev=enabled -Dbash_completion=disabled -Dlogin_shell=disabled
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+  # Members of the libvirt group manage VMs without root (polkit rule).
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/polkit-1/rules.d/50-libvirt.rules" <<'RULE'
+polkit.addRule(function(action, subject) {
+  if (action.id == "org.libvirt.unix.manage" && subject.isInGroup("libvirt")) {
+    return polkit.Result.YES;
+  }
+});
+RULE
+  # Upstream's file makes Fedora's "qemu" user (uid 107); this build runs
+  # guests as libvirt-qemu (the qemu_user option), so declare that one.
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/sysusers.d/libvirt-qemu.conf" <<'CONF'
+u libvirt-qemu - "libvirt QEMU user" /var/lib/libvirt
+m libvirt-qemu kvm
+CONF
+  rm -rf "$pkgdir/run" "$pkgdir/var/run"
+  # Docs are built for the API XML (share/libvirt/api, which the Python
+  # bindings generate from) and the man pages; the HTML site isn't needed.
+  rm -rf "$pkgdir/usr/share/doc/libvirt/html"
+}

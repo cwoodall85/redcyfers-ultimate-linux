@@ -1,0 +1,32 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# virt-viewer (and remote-viewer): the window for a libvirt guest's SPICE
+# or VNC console -- what tools/test-vm.sh opens. Signed by Daniel P.
+# Berrange (BE86EBB415104FDF).
+pkgname=virt-viewer
+pkgver=11.0
+pkgrel=1
+pkgdesc="Displays the graphical console of a virtual machine"
+arch=('x86_64')
+url="https://gitlab.com/virt-viewer/virt-viewer"
+license=('GPL-2.0-or-later')
+depends=('gtk3' 'libvirt' 'libvirt-glib' 'spice-gtk' 'gtk-vnc' 'libxml2')
+makedepends=('meson')
+source=("https://releases.pagure.org/virt-viewer/virt-viewer-${pkgver}.tar.xz")
+sha256sums=('a43fa2325c4c1c77a5c8c98065ac30ef0511a21ac98e590f22340869bad9abd0')
+
+prepare() {
+  # Meson >= 0.60 rejects i18n.merge_file()'s old positional argument.
+  sed -i -E '/i18n.merge_file \(/{n;/^    (desktop|mimetypes|metainfo),$/d}' \
+    "virt-viewer-$pkgver/data/meson.build"
+}
+
+build() {
+  meson setup build "virt-viewer-$pkgver" --prefix=/usr --buildtype=release \
+    -Dlibvirt=enabled -Dspice=enabled -Dvnc=enabled -Dovirt=disabled -Dvte=disabled \
+    -Dbash_completion=disabled
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

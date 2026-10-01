@@ -1,0 +1,26 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh: it goes
+# with google-chrome into the private package set, and links against
+# this system's libraries (OpenSSL 4), which Arch's container lacks.
+# GitHub CLI, repackaged from GitHub's official release (a static Go
+# binary; building it would pull the whole Go toolchain into the base).
+pkgname=github-cli
+pkgver=2.101.0
+pkgrel=1
+pkgdesc="GitHub's command line tool"
+arch=('x86_64')
+url="https://cli.github.com/"
+license=('MIT')
+depends=('git')
+options=('!strip' '!debug')
+source=("https://github.com/cli/cli/releases/download/v${pkgver}/gh_${pkgver}_linux_amd64.tar.gz")
+sha256sums=('9bca2d1c16825f109907a23307628a2f0698fbf99662b73a5cf0b020293072b8')
+
+package() {
+  cd "gh_${pkgver}_linux_amd64"
+  install -Dm755 bin/gh "$pkgdir/usr/bin/gh"
+  cp -r share "$pkgdir/usr/"
+  install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  install -d "$pkgdir/usr/share/bash-completion/completions" "$pkgdir/usr/share/zsh/site-functions"
+  ./bin/gh completion -s bash > "$pkgdir/usr/share/bash-completion/completions/gh"
+  ./bin/gh completion -s zsh > "$pkgdir/usr/share/zsh/site-functions/_gh"
+}

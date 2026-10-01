@@ -1,0 +1,24 @@
+#!/bin/bash
+# socat -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: http://www.dest-unreach.org/socat/download/socat-1.8.1.3.tar.gz
+# Checksum (sha256) from Arch's package recipe; verified on download.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "http://www.dest-unreach.org/socat/download/socat-1.8.1.3.tar.gz"
+FILE=socat-1.8.1.3.tar.gz
+cd /sources
+echo "06602ffd591e98c75b3dc1d66f0f19136cc666b0b2d95caad987d6ab2cb28097  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-socat
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+# OpenSSL 4 made ASN1_STRING opaque: read it through the accessors.
+sed -i 's|pName->d.iPAddress->data;|ASN1_STRING_get0_data(pName->d.iPAddress);|
+        s|pName->d.iPAddress->length;|ASN1_STRING_length(pName->d.iPAddress);|' xio-openssl.c
+./configure --prefix=/usr
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

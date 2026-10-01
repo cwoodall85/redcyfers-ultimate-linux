@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Claude sign-in
+Comment=Sign in to Claude on first login
+Exec=ultimate-claude-welcome --autostart
+Icon=dialog-scripts
+OnlyShowIn=KDE;
+NoDisplay=true
+X-KDE-autostart-phase=2

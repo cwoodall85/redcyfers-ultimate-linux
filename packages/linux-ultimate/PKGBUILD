@@ -1,0 +1,63 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# The Ultimate Linux kernel, from scratch/kernel/config-<ver>, as its own
+# package: each release installs next to the others (vmlinuz-<release>,
+# /usr/lib/modules/<release>), and ultimate-update-grub lists every kernel
+# in /boot, so the previous one stays in the menu as a fallback.
+#
+# Secure Boot: vmlinuz is signed with the MOK key (SB_KEY_DIR, default
+# ~/.local/share/ultimate-linux/secureboot -- never commit it) by
+# sign-kernel.sh, which runs sbsign in a throwaway Arch container. Without
+# the key the build stops: an unsigned kernel won't boot with Secure Boot on.
+pkgname=linux-ultimate
+_ver=7.2.8
+_rel=1                       # 1: 7.2 series, Landlock on
+pkgver=${_ver}.${_rel}
+pkgrel=1
+_release=${_ver}-${_rel}-ultimate
+pkgdesc="Ultimate Linux kernel ${_release}"
+arch=('x86_64')
+url="https://github.com/cwoodall85/redcyfers-ultimate-linux"
+license=('GPL-2.0-only')
+depends=('kmod')
+makedepends=('bc' 'openssl' 'podman')
+options=('!strip' '!debug')
+# kernel.org's sha256sums.asc, gpg-verified (autosigner B8868C80BA62A1FF...)
+source=("https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-${_ver}.tar.xz")
+sha256sums=('12e8d5a973d1ad7c5a5c69882e4022b131ed715db7003fdcd760ddf8c3e51941')
+
+prepare() {
+  cd "linux-$_ver"
+  cp "$startdir/../../scratch/kernel/config-$_ver" .config
+  # The release string names the files; keep it exactly _release.
+  sed -i 's/^CONFIG_LOCALVERSION=.*/CONFIG_LOCALVERSION="-'"$_rel"'-ultimate"/; s/^CONFIG_LOCALVERSION_AUTO=.*/# CONFIG_LOCALVERSION_AUTO is not set/' .config
+  make -s olddefconfig
+  [[ $(make -s kernelrelease) == "$_release" ]] || { echo "kernelrelease is $(make -s kernelrelease)"; return 1; }
+}
+
+build() {
+  cd "linux-$_ver"
+  make -j"$(nproc)" bzImage modules
+  "$startdir/sign-kernel.sh" arch/x86/boot/bzImage
+}
+
+package() {
+  cd "linux-$_ver"
+  install -Dm644 arch/x86/boot/bzImage "$pkgdir/boot/vmlinuz-$_release"
+  install -Dm644 System.map "$pkgdir/boot/System.map-$_release"
+  install -Dm644 .config "$pkgdir/boot/config-$_release"
+  make INSTALL_MOD_PATH="$pkgdir/usr" INSTALL_MOD_STRIP=1 DEPMOD=/doesnt/exist modules_install
+  rm -f "$pkgdir/usr/lib/modules/$_release"/{build,source}
+  # depmod at install time (the hook below), against the real system.
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/libalpm/hooks/60-linux-ultimate-$_release-depmod.hook" <<HOOK
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/$_release/*
+
+[Action]
+Description = Updating module dependencies for $_release...
+When = PostTransaction
+Exec = /usr/sbin/depmod $_release
+HOOK
+}

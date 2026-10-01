@@ -1,0 +1,21 @@
+#!/bin/bash
+# NetworkManager's OpenVPN plug-in: lets NetworkManager (and Plasma's network
+# settings, which have their own OpenVPN editor) bring OpenVPN connections
+# up. Built without its GNOME dialogs. It runs openvpn as nm-openvpn.
+# Source: GNOME's release; sha256 as GNOME publishes it.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://download.gnome.org/sources/NetworkManager-openvpn/1.12/NetworkManager-openvpn-1.12.5.tar.xz"
+FILE=NetworkManager-openvpn-1.12.5.tar.xz
+cd /sources
+echo "ce32e38b0500eddf2fc8072ca17679817fc2d35eb91f6ff7b9904209c14b5afd  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-nm-openvpn
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd NetworkManager-openvpn-1.12.5
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+            --libexecdir=/usr/libexec --without-gnome --disable-static
+make -j"$(nproc)"
+make install
+groupadd -r nm-openvpn
+useradd -r -g nm-openvpn -d /var/lib/openvpn -s /bin/false -c "NetworkManager OpenVPN" nm-openvpn
+cd / && rm -rf $W

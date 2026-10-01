@@ -1,0 +1,12 @@
+[Unit]
+Description=Create the live session user
+Before=display-manager.service systemd-user-sessions.service
+After=systemd-sysusers.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/ultimate-live-user
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

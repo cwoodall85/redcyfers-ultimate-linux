@@ -1,0 +1,21 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# edk2-ovmf: UEFI firmware for QEMU guests (our --uefi test VMs, Secure
+# Boot tests). Arch's package as-is: firmware images, nothing linked, so
+# there's nothing to build against this system. Its signature (David
+# Runge, 62CC73F884E52957B2FDD8839B7A287D9A2EC608) was verified before
+# pinning the checksum.
+pkgname=edk2-ovmf
+pkgver=202608
+pkgrel=1
+pkgdesc="UEFI firmware for x86_64 virtual machines (from Arch Linux)"
+arch=('any')
+url="https://github.com/tianocore/edk2"
+license=('Apache-2.0' 'BSD-2-Clause-Patent' 'MIT')
+options=('!strip')
+source=("https://geo.mirror.pkgbuild.com/extra/os/x86_64/edk2-ovmf-${pkgver}-${pkgrel}-any.pkg.tar.zst")
+noextract=("edk2-ovmf-${pkgver}-${pkgrel}-any.pkg.tar.zst")
+sha256sums=('bee34c6036ebd0e96562b7330d2d3ddf75e240cfc44a6d506a5ccb6390eafb91')
+
+package() {
+  bsdtar -xf "edk2-ovmf-${pkgver}-${pkgrel}-any.pkg.tar.zst" -C "$pkgdir" usr
+}

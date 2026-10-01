@@ -1,0 +1,28 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# nftables rebuilt WITH JSON support, replacing the stage-2 build (made
+# --without-json): Podman's netavark and libvirt drive nft through
+# 'nft -j', which failed with "JSON support not compiled-in".
+# Release signed by the Netfilter Core Team (8C5F7146A1757A65E2422A94D70D1A666ACF2B21);
+# checksum matches the one the BLFS script pins.
+pkgname=nftables
+pkgver=1.1.7
+pkgrel=2
+pkgdesc="Netfilter tables userspace tools (with JSON)"
+arch=('x86_64')
+url="https://netfilter.org/projects/nftables/"
+license=('GPL-2.0-only')
+depends=('libmnl' 'libnftnl' 'gmp' 'readline' 'jansson')
+source=("https://www.netfilter.org/projects/nftables/files/nftables-${pkgver}.tar.xz")
+sha256sums=('a6fbf060d8d4fff001517a2b94f356bb4366bfbf0ba366366f9d27cc38caa58f')
+
+build() {
+  cd "nftables-$pkgver"
+  ./configure --prefix=/usr --sysconfdir=/etc --disable-debug --disable-man-doc \
+    --with-json --with-cli=readline --disable-static
+  make
+}
+
+package() {
+  cd "nftables-$pkgver"
+  make DESTDIR="$pkgdir" install
+}

@@ -1,0 +1,27 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh: it goes
+# with google-chrome into the private package set, and links against
+# this system's libraries (OpenSSL 4), which Arch's container lacks.
+# mokutil: manage Secure Boot Machine Owner Keys (enrol the Ultimate Linux
+# key, check what shim trusts).
+pkgname=mokutil
+pkgver=0.7.2
+pkgrel=1
+pkgdesc="Manage Secure Boot Machine Owner Keys"
+arch=('x86_64')
+url="https://github.com/lcp/mokutil"
+license=('GPL-3.0-or-later')
+depends=('efivar' 'openssl' 'keyutils' 'libxcrypt')
+source=("mokutil-${pkgver}.tar.gz::https://github.com/lcp/mokutil/archive/refs/tags/${pkgver}.tar.gz")
+sha256sums=('839d677c4fc9805f1565703ca32863e4652692c53da66a88ae9b9e30676f9e17')
+
+build() {
+  cd "mokutil-$pkgver"
+  ./autogen.sh
+  ./configure --prefix=/usr --sysconfdir=/etc
+  make
+}
+
+package() {
+  cd "mokutil-$pkgver"
+  make DESTDIR="$pkgdir" install
+}

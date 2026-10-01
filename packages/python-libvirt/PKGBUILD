@@ -1,0 +1,24 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# libvirt's Python bindings (virt-install and our test scripts use them).
+pkgname=python-libvirt
+pkgver=12.7.0
+pkgrel=1
+pkgdesc="libvirt Python bindings"
+arch=('x86_64')
+url="https://libvirt.org/"
+license=('LGPL-2.1-or-later')
+depends=('libvirt' 'Python')
+makedepends=('setuptools' 'Python')
+source=("https://files.pythonhosted.org/packages/source/l/libvirt-python/libvirt_python-${pkgver}.tar.gz")
+sha256sums=('03a6800a3cc7657267e2516f579ce95c93d6351182caf03f92a49556685bf8bf')
+
+build() {
+  cd "libvirt_python-$pkgver"
+  python3 -m pip wheel --no-deps --no-build-isolation --no-index -w dist .
+}
+
+package() {
+  cd "libvirt_python-$pkgver"
+  python3 -m pip install --no-deps --no-index --no-warn-script-location \
+    --root "$pkgdir" --prefix /usr dist/*.whl
+}

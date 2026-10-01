@@ -1,0 +1,26 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# passt/pasta: user-mode networking for rootless Podman (its default) and
+# for QEMU/libvirt guests. Snapshot as packaged by Fedora (passt.top has no
+# release tarballs, only git snapshots).
+pkgname=passt
+_commit=df90211db4b08a06ed4e499ffa40bf8811100a2f
+pkgver=2026.09.25.gdf90211
+pkgrel=1
+pkgdesc="User-mode networking daemons for VMs and namespaces (passt, pasta)"
+arch=('x86_64')
+url="https://passt.top/"
+license=('GPL-2.0-or-later' 'BSD-3-Clause')
+depends=('glibc')
+source=("https://passt.top/passt/snapshot/passt-${_commit}.tar.xz")
+sha256sums=('b4119bc5f3d72a167ce2ece0098db7f0d7139ad54986db618f948303d1af1bbb')
+
+build() {
+  cd "passt-$_commit"
+  make VERSION=$pkgver
+}
+
+package() {
+  cd "passt-$_commit"
+  make DESTDIR="$pkgdir" prefix=/usr install
+  install -Dm644 LICENSES/BSD-3-Clause.txt "$pkgdir/usr/share/licenses/$pkgname/BSD-3-Clause.txt" 2>/dev/null || true
+}

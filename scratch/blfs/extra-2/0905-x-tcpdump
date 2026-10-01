@@ -1,0 +1,21 @@
+#!/bin/bash
+# tcpdump -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://www.tcpdump.org/release/tcpdump-4.99.7.tar.gz
+# Checksum (b2) from Arch's package recipe; verified on download.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://www.tcpdump.org/release/tcpdump-4.99.7.tar.gz"
+FILE=tcpdump-4.99.7.tar.gz
+cd /sources
+echo "15cb61451ba7b0d60255a335d9741857100bf30f90bf7e737cd625e461ce02cb320905006881e5c8d3e4056fae28282ecf29447f0827a961507fca2db14face7  $FILE" | b2sum -c -
+W=/sources/blfs/extra-tcpdump
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

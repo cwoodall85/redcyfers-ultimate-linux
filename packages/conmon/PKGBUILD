@@ -1,0 +1,22 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# conmon: the small monitor process Podman runs beside each container.
+pkgname=conmon
+pkgver=2.2.1
+pkgrel=1
+pkgdesc="OCI container runtime monitor"
+arch=('x86_64')
+url="https://github.com/containers/conmon"
+license=('Apache-2.0')
+depends=('glib2' 'libseccomp' 'systemd')
+source=("conmon-${pkgver}.tar.gz::https://github.com/containers/conmon/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('814fb5979a3a4b8576b1f901e606b482bebb41cb7e57926e6d5765ee786b96d3')
+
+build() {
+  cd "conmon-$pkgver"
+  make bin/conmon VERSION=$pkgver GIT_COMMIT=v$pkgver
+}
+
+package() {
+  cd "conmon-$pkgver"
+  make install.bin DESTDIR="$pkgdir" PREFIX=/usr
+}

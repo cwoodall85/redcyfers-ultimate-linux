@@ -1,0 +1,74 @@
+# The Ultimate look: the Ultimate Dark colour scheme, the Cognition animated
+# wallpaper (a thinking network) with a matching still for the login and
+# lock screens, a Konsole profile, a global theme with its splash screen (the Cognition network
+# behind the Ultimate Linux mark, while Plasma loads) and the matching boot
+# screen (a Plymouth theme), and fastfetch's logo
+# and layout (the summary a new terminal prints). The wallpaper also
+# draws the clock and live system readout, and Claude's work, itself.
+#
+# palette.py generates the colours and the still from one palette, so
+# every surface matches. It runs at build time.
+pkgname=ultimate-theme
+pkgver=0.6.1
+pkgrel=1
+pkgdesc="Ultimate Linux desktop look: dark theme, Cognition brain wallpaper, Ultimate desktop widgets"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-linux"
+license=('MIT')
+depends=('plasma-workspace' 'plasma-desktop' 'breeze' 'ksystemstats' 'libksysguard'
+         'ttf-jetbrains-mono' 'inter-font' 'ttf-dejavu')
+optdepends=('fastfetch: the system summary in new terminals'
+            'plymouth: the boot screen')
+makedepends=('python-pillow' 'fontconfig' 'ttf-dejavu' 'librsvg')
+backup=('etc/xdg/kdeglobals' 'etc/xdg/konsolerc' 'etc/xdg/kscreenlockerrc' 'etc/xdg/ksplashrc'
+        'etc/xdg/gtk-3.0/settings.ini' 'etc/xdg/gtk-4.0/settings.ini'
+        'etc/sddm.conf.d/20-ultimate-theme.conf' 'etc/xdg/fastfetch/config.jsonc')
+
+package() {
+  local s="$startdir"
+  python "$s/palette.py" "$pkgdir"
+
+  install -d "$pkgdir/usr/share/plasma/wallpapers" "$pkgdir/usr/share/plasma/look-and-feel"
+  cp -r "$s/wallpaper/org.ultimatelinux.cognition" "$pkgdir/usr/share/plasma/wallpapers/"
+  cp -r "$s/look-and-feel/org.ultimatelinux.desktop" "$pkgdir/usr/share/plasma/look-and-feel/"
+  # The Ultimate widgets: one desktop widget per readout (clock, CPU, memory,
+  # network, disk, Claude), sharing one tile look (widgets/common, copied in).
+  install -d "$pkgdir/usr/share/plasma/plasmoids"
+  local w
+  for w in "$s"/widgets/org.ultimatelinux.*; do
+    cp -r "$w" "$pkgdir/usr/share/plasma/plasmoids/"
+    cp "$s"/widgets/common/*.qml "$pkgdir/usr/share/plasma/plasmoids/$(basename "$w")/contents/ui/"
+  done
+  # The splash runs the wallpaper's own network behind the Ultimate Linux
+  # mark: copy the view in beside it, and draw the mark from the logo script.
+  local splash="$pkgdir/usr/share/plasma/look-and-feel/org.ultimatelinux.desktop/contents/splash"
+  cp "$s"/wallpaper/org.ultimatelinux.cognition/contents/ui/{CognitionView,SystemHud,SystemStats,ClaudeOverlay}.qml "$splash/"
+  python "$s/logos/make-logos.py" "$srcdir/logos" >/dev/null
+  install -Dm644 "$srcdir/logos/ultimate-linux-mark.svg" "$splash/images/ultimate-linux-mark.svg"
+  # The system logo (os-release LOGO=, About This System, the menu button,
+  # the installer) and Ultimate Chat's icon; Mail and SSH ship their own.
+  local icons="$pkgdir/usr/share/icons/hicolor/scalable/apps"
+  install -Dm644 "$srcdir/logos/ultimate-linux.svg" "$icons/ultimate-linux.svg"
+  install -Dm644 "$srcdir/logos/ultimate-linux-mark.svg" "$icons/ultimate-linux-mark.svg"
+  install -Dm644 "$srcdir/logos/ultimate-chat.svg" "$icons/ultimate-chat.svg"
+  # The boot screen (Plymouth): the same network and mark, before login.
+  rsvg-convert -w 512 -h 512 -o "$srcdir/mark.png" "$srcdir/logos/ultimate-linux-mark.svg"
+  python "$s/plymouth/make-plymouth.py" "$pkgdir/usr/share/plymouth/themes/ultimate" "$srcdir/mark.png" >/dev/null
+  install -Dm644 "$s/files/wallpaper-metadata.json" \
+    "$pkgdir/usr/share/wallpapers/UltimateCognition/metadata.json"
+  install -Dm644 "$pkgdir/usr/share/wallpapers/UltimateCognition/contents/images/3840x2160.png" \
+    "$pkgdir/usr/share/plasma/look-and-feel/org.ultimatelinux.desktop/contents/previews/fullscreenpreview.png"
+
+  install -Dm644 "$s/files/Ultimate.profile" "$pkgdir/usr/share/konsole/Ultimate.profile"
+  install -Dm644 "$s/files/konsolerc" "$pkgdir/etc/xdg/konsolerc"
+  install -Dm644 "$s/files/kscreenlockerrc" "$pkgdir/etc/xdg/kscreenlockerrc"
+  install -Dm644 "$s/files/ksplashrc" "$pkgdir/etc/xdg/ksplashrc"
+  install -Dm644 "$s/files/gtk-settings.ini" "$pkgdir/etc/xdg/gtk-3.0/settings.ini"
+  install -Dm644 "$s/files/gtk-settings.ini" "$pkgdir/etc/xdg/gtk-4.0/settings.ini"
+  install -Dm644 "$s/files/sddm-ultimate.conf" "$pkgdir/etc/sddm.conf.d/20-ultimate-theme.conf"
+  install -Dm644 "$s/files/sddm-theme.conf.user" "$pkgdir/usr/share/sddm/themes/breeze/theme.conf.user"
+  install -Dm644 "$s/files/fastfetch/config.jsonc" "$pkgdir/etc/xdg/fastfetch/config.jsonc"
+  install -Dm644 "$s/files/fastfetch/logo.txt" "$pkgdir/usr/share/ultimate/fastfetch/logo.txt"
+  find "$pkgdir" -type d -exec chmod 755 {} +
+  find "$pkgdir" -type f -exec chmod 644 {} +
+}

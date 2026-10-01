@@ -1,0 +1,25 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# crun: the OCI runtime (in C) that actually starts Podman's containers.
+# Release tarball signed by Giuseppe Scrivano (AF60FCA3CDAA6DEAD157EA3A67E38F7A8BA21772);
+# checksum taken after gpg --verify passed.
+pkgname=crun
+pkgver=1.30.1
+pkgrel=1
+pkgdesc="Fast, low-memory OCI container runtime"
+arch=('x86_64')
+url="https://github.com/containers/crun"
+license=('GPL-2.0-or-later' 'LGPL-2.1-or-later')
+depends=('libcap' 'libseccomp' 'systemd')
+source=("https://github.com/containers/crun/releases/download/${pkgver}/crun-${pkgver}.tar.gz")
+sha256sums=('99d036d95113552b6df66c7c879432835504bf0e525fc0372745071df129527b')
+
+build() {
+  cd "crun-$pkgver"
+  ./configure --prefix=/usr --disable-static
+  make
+}
+
+package() {
+  cd "crun-$pkgver"
+  make DESTDIR="$pkgdir" install
+}

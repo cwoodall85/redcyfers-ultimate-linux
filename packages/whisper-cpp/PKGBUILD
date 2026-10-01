@@ -1,0 +1,40 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh, like the
+# other tools built against this system's libraries.
+# whisper.cpp: speech to text on this machine, for talking to Claude (the
+# bar's mic, "Hey Claude"). Every CPU variant of ggml is built and the best
+# one is picked when it loads, so one package runs fast on anything from
+# SSE4 to AVX-512. Models are not in the package: ultimate-voice fetches the
+# one you choose into ~/.local/share/ultimate/voice.
+pkgname=whisper-cpp
+pkgver=1.9.4
+pkgrel=1
+pkgdesc="Speech recognition on this machine (whisper.cpp)"
+arch=('x86_64')
+url="https://github.com/ggml-org/whisper.cpp"
+license=('MIT')
+makedepends=('cmake' 'ninja')
+source=("whisper.cpp-${pkgver}.tar.gz::https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v${pkgver}.tar.gz")
+sha256sums=('57e280cee375ab02425b806ad5146b99f6eb9357e3c2b31357c8a6af2e2e44ae')
+
+build() {
+  cmake -B build -S "whisper.cpp-$pkgver" -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=ON \
+    -DGGML_NATIVE=OFF -DGGML_BACKEND_DL=ON -DGGML_CPU_ALL_VARIANTS=ON \
+    -DGGML_BACKEND_DIR=/usr/lib/ggml \
+    -DWHISPER_BUILD_TESTS=OFF -DWHISPER_BUILD_EXAMPLES=ON -DWHISPER_BUILD_SERVER=OFF \
+    -DWHISPER_SDL2=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  # ggml's CPU variants load from GGML_BACKEND_DIR; its install puts them
+  # beside the programs
+  install -d "$pkgdir/usr/lib/ggml"
+  mv "$pkgdir"/usr/bin/libggml-*.so "$pkgdir/usr/lib/ggml/" 2>/dev/null || true
+  # the command-line tools as whisper-*, not their generic example names
+  for f in "$pkgdir"/usr/bin/*; do
+    case ${f##*/} in whisper-*) ;; *) mv "$f" "$pkgdir/usr/bin/whisper-${f##*/}" ;; esac
+  done
+  install -Dm644 "whisper.cpp-$pkgver/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

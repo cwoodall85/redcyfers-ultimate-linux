@@ -1,0 +1,26 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# The libxml2 Python module (virt-install parses libvirt XML with it). The
+# base system's libxml2 was built without Python; this builds the same
+# release with it and ships only the module, linked to the system library.
+pkgname=python-libxml2
+pkgver=2.15.3
+pkgrel=1
+pkgdesc="Python bindings for libxml2"
+arch=('x86_64')
+url="https://gitlab.gnome.org/GNOME/libxml2"
+license=('MIT')
+depends=('libxml2' 'Python')
+source=("https://download.gnome.org/sources/libxml2/${pkgver%.*}/libxml2-${pkgver}.tar.xz")
+sha256sums=('78262a6e7ac170d6528ebfe2efccdf220191a5af6a6cd61ea4a9a9a5042c7a07')
+
+build() {
+  meson setup build "libxml2-$pkgver" --prefix=/usr --buildtype=release -Dpython=enabled
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir/../full"
+  install -d "$pkgdir/usr/lib"
+  cp -a "$pkgdir"/../full/usr/lib/python3* "$pkgdir/usr/lib/"
+  rm -rf "$pkgdir/../full"
+}

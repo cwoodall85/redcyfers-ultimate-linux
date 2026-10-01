@@ -1,0 +1,26 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# spice-server: QEMU's SPICE display/input server (the guest side of the
+# virt-viewer console). Checksum matches upstream's published .sha256.
+pkgname=spice-server
+pkgver=0.16.0
+pkgrel=2
+pkgdesc="SPICE server library"
+arch=('x86_64')
+url="https://www.spice-space.org/"
+license=('LGPL-2.1-or-later')
+depends=('glib2' 'pixman' 'openssl' 'opus' 'libjpeg' 'zlib')
+makedepends=('spice-protocol')
+source=("https://www.spice-space.org/download/releases/spice-server/spice-${pkgver}.tar.bz2")
+sha256sums=('0a6ec9528f05371261bbb2d46ff35e7b5c45ff89bb975a99af95a5f20ff4717d')
+
+build() {
+  cd "spice-$pkgver"
+  ./configure --prefix=/usr --disable-static --disable-celt051 --disable-gstreamer \
+    --disable-lz4 --disable-smartcard --disable-tests --disable-manual
+  make
+}
+
+package() {
+  cd "spice-$pkgver"
+  make DESTDIR="$pkgdir" install
+}

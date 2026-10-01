@@ -1,0 +1,20 @@
+#!/bin/bash
+# Rebuild kernel 7.1.8 with the current scratch/kernel/config-7.1.8 (last
+# step of the last stage, so it sees every config change), which
+# builds in what booting real machines without an initramfs needs (USB
+# storage for booting the image from a stick, SD readers, the UEFI
+# framebuffer). Replaces the kernel jhalfs installed, under the same name.
+set -e
+cd /sources
+W=/sources/blfs/extra-kernel
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/linux-7.1.8.tar.xz
+cd linux-7.1.8
+cp /blfs/kernel-config .config
+make olddefconfig
+make -j"$(nproc)"
+make modules_install
+cp -v arch/x86/boot/bzImage /boot/vmlinuz-7.1.8-lfs-r13.1-systemd
+cp -v System.map /boot/System.map-7.1.8
+cp -v .config /boot/config-7.1.8
+cd / && rm -rf $W

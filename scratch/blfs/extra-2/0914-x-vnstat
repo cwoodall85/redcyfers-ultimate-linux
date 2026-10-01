@@ -1,0 +1,22 @@
+#!/bin/bash
+# vnstat -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://humdi.net/vnstat/vnstat-2.13.tar.gz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://humdi.net/vnstat/vnstat-2.13.tar.gz"
+FILE=vnstat-2.13.tar.gz
+cd /sources
+echo "c9fe19312d1ec3ddfbc4672aa951cf9e61ca98dc14cad3d3565f7d9803a6b187  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-vnstat
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr --sysconfdir=/etc --sbindir=/usr/bin
+make
+make install
+install -Dm644 examples/systemd/vnstat.service /usr/lib/systemd/system/vnstat.service
+
+cd / && rm -rf $W
+ldconfig

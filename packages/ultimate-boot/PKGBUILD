@@ -1,0 +1,47 @@
+# Installing and booting the from-source Ultimate Linux: the installer
+# (ultimate-install), the migration from a dual-booted Fedora
+# (ultimate-migrate), the boot menu writer (ultimate-update-grub) with the
+# pacman hook that runs it after kernel and boot-file updates, the
+# installer's desktop launcher, the polkit rule making wheel members
+# administrators, /usr/sbin on every user's PATH, ksshaskpass in
+# /usr/bin; ultimate-sysusers (+ pacman hook) standing in for the
+# systemd-sysusers this systemd was built without; and a udev rule so
+# Bluetooth keyboards can wake the computer; /etc/skel's .bashrc and
+# .bash_profile (a user@host prompt; BLFS has no /etc/skel, so new
+# accounts got bash's bare "bash-5.3$").
+pkgname=ultimate-boot
+pkgver=1.5.4
+pkgrel=1
+pkgdesc="Ultimate Linux installer and boot menu"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-linux"
+license=('MIT')
+depends=('bash' 'util-linux' 'rsync' 'e2fsprogs' 'dosfstools' 'grub')
+optdepends=('efibootmgr: firmware boot entries on UEFI machines'
+            'ultimate-secureboot: the signed boot chain for Secure Boot')
+
+package() {
+  install -Dm755 "$startdir/ultimate-install" "$pkgdir/usr/bin/ultimate-install"
+  install -Dm644 "$startdir/skel/bashrc" "$pkgdir/etc/skel/.bashrc"
+  install -Dm644 "$startdir/skel/bash_profile" "$pkgdir/etc/skel/.bash_profile"
+  install -Dm755 "$startdir/ultimate-update-grub" "$pkgdir/usr/bin/ultimate-update-grub"
+  install -Dm755 "$startdir/ultimate-migrate" "$pkgdir/usr/bin/ultimate-migrate"
+  install -Dm644 "$startdir/70-ultimate-bt-wake.rules" \
+    "$pkgdir/usr/lib/udev/rules.d/70-ultimate-bt-wake.rules"
+  install -Dm755 "$startdir/usb-wake-path" "$pkgdir/usr/lib/ultimate/usb-wake-path"
+  install -Dm755 "$startdir/ultimate-sysusers" "$pkgdir/usr/bin/ultimate-sysusers"
+  install -Dm644 "$startdir/80-ultimate-sysusers.hook" \
+    "$pkgdir/usr/share/libalpm/hooks/80-ultimate-sysusers.hook"
+  install -Dm644 "$startdir/90-ultimate-update-grub.hook" \
+    "$pkgdir/usr/share/libalpm/hooks/90-ultimate-update-grub.hook"
+  install -Dm644 "$startdir/ultimate-install.desktop" \
+    "$pkgdir/usr/share/applications/ultimate-install.desktop"
+  # polkit keeps rules.d at 750; match it or pacman warns.
+  install -dm750 "$pkgdir/etc/polkit-1/rules.d"
+  install -m644 "$startdir/49-ultimate-wheel.rules" \
+    "$pkgdir/etc/polkit-1/rules.d/49-ultimate-wheel.rules"
+  install -Dm644 "$startdir/ultimate-path.sh" "$pkgdir/etc/profile.d/ultimate-path.sh"
+  # BLFS puts KDE's askpass under /opt/kf6/bin; the usual
+  # SUDO_ASKPASS=/usr/bin/ksshaskpass should work as on other distros.
+  ln -s /opt/kf6/bin/ksshaskpass "$pkgdir/usr/bin/ksshaskpass"
+}

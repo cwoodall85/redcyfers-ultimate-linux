@@ -1,0 +1,21 @@
+#!/bin/bash
+# nload -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: http://www.roland-riegel.de/nload/nload-0.7.4.tar.gz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "http://www.roland-riegel.de/nload/nload-0.7.4.tar.gz"
+FILE=nload-0.7.4.tar.gz
+cd /sources
+echo "c1c051e7155e26243d569be5d99c744d8620e65fa8a7e05efcf84d01d9d469e5  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-nload
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr CXXFLAGS='-O2 -std=gnu++14'
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

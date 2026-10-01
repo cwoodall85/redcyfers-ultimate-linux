@@ -1,0 +1,30 @@
+#!/bin/bash
+# Flatpak: desktop apps from Flathub (Slack, Discord, Zoom, ...) that bring
+# their own libraries, so the from-source base needs nothing per app.
+# Uses the system bubblewrap and xdg-dbus-proxy already built here.
+# Flathub is set up for everyone through remotes.d, which Flatpak reads the
+# first time it runs; no network is needed at build time.
+# Source: the project's release; sha256 checked against the one published
+# beside it.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/flatpak/flatpak/releases/download/1.18.4/flatpak-1.18.4.tar.xz"
+# fetched by fetch.py: wget -T 30 -t 5 "https://dl.flathub.org/repo/flathub.flatpakrepo"
+FILE=flatpak-1.18.4.tar.xz
+cd /sources
+echo "b899a7a00c48d2c626cb8ec33fe556720b376c25805d7222430c0fdca4c6ac8d  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-flatpak
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd flatpak-1.18.4
+getent group flatpak >/dev/null || groupadd -r flatpak
+getent passwd flatpak >/dev/null || useradd -r -g flatpak -d / -s /bin/false -c "Flatpak system helper" flatpak
+meson setup build --prefix=/usr --sysconfdir=/etc --localstatedir=/var \
+  --buildtype=release -Dsystem_bubblewrap=bwrap -Dsystem_dbus_proxy=xdg-dbus-proxy \
+  -Dtests=false -Dinstalled_tests=false -Ddocbook_docs=disabled -Dgtkdoc=disabled \
+  -Dselinux_module=disabled -Dmalcontent=disabled
+ninja -C build
+ninja -C build install
+grep -q '^\[Flatpak Repo\]' /sources/flathub.flatpakrepo
+install -Dm644 /sources/flathub.flatpakrepo /etc/flatpak/remotes.d/flathub.flatpakrepo
+cd / && rm -rf $W
+ldconfig

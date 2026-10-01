@@ -1,0 +1,19 @@
+#!/bin/bash
+# ipcalc -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://github.com/kjokjo/ipcalc/archive/refs/tags/0.51/ipcalc-0.51.tar.gz
+# Checksum (sha256) from Arch's package recipe; verified on download.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://github.com/kjokjo/ipcalc/archive/refs/tags/0.51/ipcalc-0.51.tar.gz"
+FILE=ipcalc-0.51.tar.gz
+cd /sources
+echo "a4dbfaeb7511b81830793ab9936bae9d7b1b561ad33e29106faaaf97ba1c117e  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-ipcalc
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+install -Dm755 ipcalc /usr/bin/ipcalc
+
+cd / && rm -rf $W
+ldconfig

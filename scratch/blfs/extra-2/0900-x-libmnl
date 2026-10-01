@@ -1,0 +1,21 @@
+#!/bin/bash
+# libmnl -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.5.tar.bz2
+# Checksum (sha256) from Arch's package recipe; verified on download.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://www.netfilter.org/projects/libmnl/files/libmnl-1.0.5.tar.bz2"
+FILE=libmnl-1.0.5.tar.bz2
+cd /sources
+echo "274b9b919ef3152bfb3da3a13c950dd60d6e2bcd54230ffeca298d03b40d0525  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-libmnl
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+./configure --prefix=/usr --disable-static
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

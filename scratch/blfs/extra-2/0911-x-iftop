@@ -1,0 +1,23 @@
+#!/bin/bash
+# iftop -- not in BLFS; built by hand for the Ultimate layer's network tools.
+# Source: http://www.ex-parrot.com/~pdw/iftop/download/iftop-1.0pre4.tar.gz
+# Checksum: sha256 of the release as first downloaded over HTTPS (trust on first use).
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "http://www.ex-parrot.com/~pdw/iftop/download/iftop-1.0pre4.tar.gz"
+FILE=iftop-1.0pre4.tar.gz
+cd /sources
+echo "f733eeea371a7577f8fe353d86dd88d16f5b2a2e702bd96f5ffb2c197d9b4f97  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-iftop
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd "$(ls -d */ | head -1)"
+export MAKEFLAGS="-j$(nproc)"
+
+# 2014 code: modern GCC defaults to -fno-common and (GCC 15+) to C23, where
+# "int f()" means no arguments
+./configure --prefix=/usr --sbindir=/usr/bin CFLAGS='-O2 -fcommon -std=gnu17'
+make
+make install
+
+cd / && rm -rf $W
+ldconfig

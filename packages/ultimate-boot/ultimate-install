@@ -1,0 +1,322 @@
+#!/bin/bash
+# ultimate-install -- install Ultimate Linux (from source) by copying the
+# running system (the USB image, or a VM) onto a disk.
+#
+# Three ways to install:
+#   whole      erase a disk: GPT with a BIOS boot partition, an EFI system
+#              partition and the root partition; boots under BIOS and UEFI.
+#   alongside  keep what's on the disk (Fedora, Windows...): a new root
+#              partition in the largest free space, the disk's existing EFI
+#              system partition shared (nothing on it is changed but our own
+#              EFI/ultimate directory), and a firmware boot entry for
+#              Ultimate Linux, put first. Its menu lists the other systems.
+#              UEFI only.
+#   reinstall  over an earlier Ultimate Linux install (its partition, labelled
+#              "ultimate"): formatted and written again; its EFI directory and
+#              boot entry are reused. For installing again after fixes.
+# Then, in every case: a new account, host name, root password, machine id
+# and SSH host keys; the image's test account is removed.
+#
+# Secure Boot: when the signed boot chain is installed (ultimate-secureboot:
+# shim, our signed GRUB, MokManager, our certificate), that is what goes on
+# the EFI partition, and the kernel is already signed. The key must be
+# enrolled once per machine (mokutil --import /usr/lib/ultimate/secureboot/
+# ultimate-mok.cer, or MokManager's "Enroll key from disk").
+#
+# Unattended use (tests): UI_MODE=whole|alongside|reinstall, UI_DISK (for
+# whole/alongside) or UI_PART (reinstall), UI_USER, UI_FULLNAME, UI_PASSWORD,
+# UI_ROOT_PASSWORD, UI_HOSTNAME, UI_YES=1. UI_KEEP_TEST_ACCESS=1 keeps the
+# image's test SSH key (tests only).
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:/sbin:/bin:$PATH
+
+T=/mnt/ultimate-target
+TEST_USER=ultimate
+ESP_TYPE=c12a7328-f81f-11d2-ba4b-00a0c93ec93b
+ROOT_TYPE=4f68bce3-e8cd-4db1-96e7-fbcaf984b709
+SB=/usr/lib/ultimate/secureboot
+
+die() { echo "ultimate-install: $*" >&2; exit 1; }
+trap 'echo "ultimate-install: failed at line $LINENO: $BASH_COMMAND" >&2' ERR
+say() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
+[[ $EUID == 0 ]] || die "run as root (pkexec ultimate-install)"
+for t in sfdisk wipefs mkfs.ext4 mkfs.fat rsync grub-install lsblk findmnt blkid partx; do
+  command -v $t >/dev/null || die "missing $t"
+done
+
+# --- where we are running from --------------------------------------------------
+src_part=$(findmnt -no SOURCE /)
+src_disk=/dev/$(lsblk -no PKNAME "$src_part" | head -1)
+efi=0; [[ -d /sys/firmware/efi ]] && efi=1
+need_mb=$(( $(df --output=used -BM / | tail -1 | tr -dc 0-9) + 4096 ))
+
+ask() {  # ask VAR "prompt" [secret]
+  local var=$1 prompt=$2 secret=${3:-} a b
+  [[ -n ${!var:-} ]] && return 0
+  while :; do
+    if [[ -n $secret ]]; then
+      read -rsp "$prompt: " a; echo
+      read -rsp "  again: " b; echo
+      [[ $a == "$b" ]] || { echo "  they don't match"; continue; }
+    else
+      read -rp "$prompt: " a
+    fi
+    [[ -n $a ]] && break
+  done
+  printf -v "$var" '%s' "$a"
+}
+partdev() {  # partdev DISK N -> /dev/sdaN or /dev/nvme0n1pN
+  local p=$1; [[ $p =~ [0-9]$ ]] && p=${p}p; echo "$p$2"
+}
+esp_of() {  # the EFI system partition on DISK, if any
+  lsblk -lnpo NAME,PARTTYPE "$1" | awk -v t=$ESP_TYPE 'tolower($2)==t {print $1; exit}'
+}
+free_region() {  # "start size" (sectors) of DISK's largest free region
+  sfdisk -F "$1" 2>/dev/null | awk '/^ *[0-9]+ +[0-9]+ +[0-9]+ /{ if ($3 > m) { m=$3; s=$1 } } END { if (m) print s, m }'
+}
+sector_mb() { echo $(( $1 * $(blockdev --getss "$2") / 1048576 )); }
+
+# --- how, and where --------------------------------------------------------------
+say "Disks"
+echo "Running from $src_part on $src_disk ($([[ $efi == 1 ]] && echo UEFI || echo BIOS) boot)."
+mapfile -t disks < <(lsblk -dnpo NAME,TYPE,RO | awk '$2=="disk" && $3==0 {print $1}' \
+  | grep -v -e "^$src_disk\$" -e zram -e '^/dev/loop')
+((${#disks[@]})) || die "no disk to install to (the disk you booted from can't be the target)"
+for d in "${disks[@]}"; do
+  lsblk -no NAME,SIZE,FSTYPE,LABEL,MODEL "$d" | sed 's/^/  /'
+  if r=$(free_region "$d") && [[ -n $r ]]; then
+    echo "    largest free space: $(sector_mb ${r#* } "$d") MiB"
+  fi
+done
+mapfile -t earlier < <(lsblk -lnpo NAME,LABEL "${disks[@]}" | awk '$2=="ultimate" {print $1}')
+
+if [[ -z ${UI_MODE:-} ]]; then
+  echo
+  echo "How to install:"
+  echo "  1) alongside  keep what's on a disk; use its free space (UEFI only)"
+  ((${#earlier[@]})) && echo "  2) reinstall  over the earlier Ultimate Linux install (${earlier[*]})"
+  echo "  3) whole      ERASE a whole disk"
+  read -rp "Choose 1, 2 or 3: " c
+  case $c in 1) UI_MODE=alongside ;; 2) UI_MODE=reinstall ;; 3) UI_MODE=whole ;; *) die "cancelled" ;; esac
+fi
+case $UI_MODE in whole|alongside|reinstall) ;; *) die "UI_MODE is whole, alongside or reinstall" ;; esac
+[[ $UI_MODE == whole || $efi == 1 ]] || die "$UI_MODE needs a UEFI boot (booted by BIOS here)"
+
+if [[ $UI_MODE == reinstall ]]; then
+  if [[ -z ${UI_PART:-} ]]; then
+    ((${#earlier[@]})) || die "no earlier Ultimate Linux install (a partition labelled \"ultimate\")"
+    UI_PART=${earlier[0]}
+    ((${#earlier[@]} == 1)) || read -rp "Which partition (${earlier[*]})? " UI_PART
+  fi
+  [[ -b $UI_PART ]] || die "$UI_PART is not a partition"
+  UI_DISK=/dev/$(lsblk -no PKNAME "$UI_PART" | head -1)
+else
+  if [[ -z ${UI_DISK:-} ]]; then
+    read -rp "Which disk? (e.g. ${disks[0]}): " UI_DISK
+  fi
+  [[ $UI_DISK == /dev/* ]] || UI_DISK=/dev/$UI_DISK
+fi
+printf '%s\n' "${disks[@]}" | grep -qx "$UI_DISK" || die "$UI_DISK is not one of the disks listed"
+
+case $UI_MODE in
+  whole)
+    size_mb=$(( $(lsblk -bdno SIZE "$UI_DISK") / 1048576 ))
+    (( size_mb >= need_mb + 513 )) || die "$UI_DISK is $size_mb MiB; this needs $((need_mb + 513)) MiB" ;;
+  alongside)
+    [[ $(lsblk -dno PTTYPE "$UI_DISK") == gpt ]] || die "$UI_DISK has no GPT; alongside needs one (with an EFI system partition)"
+    esp=$(esp_of "$UI_DISK"); [[ -n $esp ]] || die "$UI_DISK has no EFI system partition to share"
+    r=$(free_region "$UI_DISK") || true
+    [[ -n $r ]] || die "$UI_DISK has no free space: shrink a partition first (see docs/dual-boot.md)"
+    free_mb=$(sector_mb ${r#* } "$UI_DISK")
+    (( free_mb >= need_mb )) || die "$UI_DISK has $free_mb MiB free; this needs $need_mb MiB" ;;
+  reinstall)
+    esp=$(esp_of "$UI_DISK"); [[ -n $esp || $efi == 0 ]] || die "$UI_DISK has no EFI system partition" ;;
+esac
+
+# --- who and what ------------------------------------------------------------------
+say "Your account"
+while :; do
+  ask UI_USER "User name (lower case)"
+  [[ $UI_USER =~ ^[a-z_][a-z0-9_-]{0,31}$ && $UI_USER != "$TEST_USER" && $UI_USER != root ]] && break
+  echo "  not a usable name"; UI_USER=
+done
+ask UI_FULLNAME "Full name"
+ask UI_PASSWORD "Password for $UI_USER" secret
+ask UI_ROOT_PASSWORD "Password for root" secret
+while :; do
+  ask UI_HOSTNAME "Computer name"
+  [[ $UI_HOSTNAME =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]] && break
+  echo "  letters, digits and - only"; UI_HOSTNAME=
+done
+
+say "Ready"
+case $UI_MODE in
+  whole)     what="ERASE $UI_DISK ($(lsblk -dno SIZE,MODEL "$UI_DISK" | xargs)) and install on all of it" ;;
+  alongside) what="install in the ${free_mb} MiB of free space on $UI_DISK; everything on it stays" ;;
+  reinstall) what="ERASE $UI_PART (the earlier Ultimate Linux) and install there; the rest of $UI_DISK stays" ;;
+esac
+cat <<SUM
+  $what
+  user:     $UI_USER ($UI_FULLNAME), administrator
+  computer: $UI_HOSTNAME
+  boot:     $([[ $efi == 1 ]] && { [[ -f $SB/grubx64.efi ]] && echo "UEFI, signed for Secure Boot" || echo "UEFI (unsigned)"; } || echo BIOS)
+SUM
+if [[ ${UI_YES:-} != 1 ]]; then
+  read -rp "Type yes to go ahead: " ok
+  [[ $ok == yes ]] || die "cancelled; nothing was changed"
+fi
+
+cleanup() { mountpoint -q $T && umount -R $T || true; }
+trap cleanup EXIT
+
+# --- partitions and filesystems -----------------------------------------------------
+say "Partitions"
+removable=0
+case $UI_MODE in
+  whole)
+    lsblk -lnpo NAME "$UI_DISK" | tac | while read -r p; do umount "$p" 2>/dev/null || true; done
+    wipefs -aq "$UI_DISK"
+    sfdisk -q --wipe always "$UI_DISK" <<PT
+label: gpt
+size=1MiB, type=21686148-6449-6E6F-744E-656564454649, name="bios"
+size=512MiB, type=$ESP_TYPE, name="EFI system"
+type=$ROOT_TYPE, name="Ultimate Linux"
+PT
+    udevadm settle 2>/dev/null || sleep 2
+    esp=$(partdev "$UI_DISK" 2) root=$(partdev "$UI_DISK" 3)
+    for i in $(seq 1 10); do [[ -b $root ]] && break; sleep 1; done
+    mkfs.fat -F 32 -n EFI "$esp" >/dev/null
+    removable=1 ;;
+  alongside)
+    read -r start sectors <<<"$(free_region "$UI_DISK")"
+    before=$(lsblk -lnpo NAME "$UI_DISK" | sort)
+    echo "start=$start, size=$sectors, type=$ROOT_TYPE, name=\"Ultimate Linux\"" |
+      sfdisk -q --append --no-reread "$UI_DISK"
+    partx -a "$UI_DISK" 2>/dev/null || partx -u "$UI_DISK" 2>/dev/null || true
+    udevadm settle 2>/dev/null || sleep 2
+    root=$(comm -13 <(echo "$before") <(lsblk -lnpo NAME "$UI_DISK" | sort) | head -1)
+    [[ -b ${root:-} ]] || die "the new partition did not appear (reboot and run again)" ;;
+  reinstall)
+    root=$UI_PART ;;
+esac
+echo "  root: $root   EFI: ${esp:-none}"
+# The desktop may have mounted the partition by itself (it does for a new
+# one labelled "ultimate"): unmount it everywhere before formatting.
+for m in $(findmnt -rn -S "$root" -o TARGET 2>/dev/null | sort -r); do umount "$m" || umount -l "$m"; done
+# Not "ultimate-root": that label is how the install image finds itself.
+mkfs.ext4 -q -F -L ultimate "$root" ||
+  die "could not format $root: in use (an earlier install in this same session can leave it held). Restart and run again."
+
+mkdir -p $T
+mount "$root" $T
+if [[ -n ${esp:-} ]]; then
+  mkdir -p $T/boot/efi
+  mount "$esp" $T/boot/efi
+  avail=$(df --output=avail -BM $T/boot/efi | tail -1 | tr -dc 0-9)
+  (( avail >= 10 )) || die "the EFI system partition has only ${avail} MiB free"
+fi
+
+# --- copy the system -----------------------------------------------------------------
+say "Copying the system (a few minutes)"
+rsync -aHAXx --numeric-ids --info=progress2 \
+  --exclude='/proc/*' --exclude='/sys/*' --exclude='/dev/*' --exclude='/run/*' \
+  --exclude='/tmp/*' --exclude='/var/tmp/*' --exclude='/mnt/*' --exclude='/media/*' \
+  --exclude='/boot/efi/*' --exclude='/lost+found' --exclude='/swapfile' \
+  --exclude='/var/log/journal/*' --exclude='/var/cache/pacman/pkg/*' \
+  --exclude="/home/$TEST_USER" \
+  / $T/
+
+say "Configuring"
+root_uuid=$(blkid -s UUID -o value "$root")
+root_partuuid=$(blkid -s PARTUUID -o value "$root")
+esp_uuid=${esp:+$(blkid -s UUID -o value "$esp")}
+{
+  echo "# /etc/fstab -- written by ultimate-install"
+  echo "UUID=$root_uuid  /          ext4  defaults   1  1"
+  [[ -n $esp_uuid ]] && echo "UUID=$esp_uuid   /boot/efi  vfat  umask=0077 0  2"
+} > $T/etc/fstab
+echo "$UI_HOSTNAME" > $T/etc/hostname
+# A new identity: systemd makes a machine id on first boot; new SSH keys.
+echo uninitialized > $T/etc/machine-id
+rm -f $T/var/lib/systemd/random-seed $T/etc/ssh/ssh_host_*
+rm -f $T/home/*/Desktop/ultimate-install.desktop
+# The live session's conveniences (release images): auto-login, root
+# without a password, polkit saying yes to everything. Never on an install.
+rm -f $T/etc/sddm.conf.d/50-ultimate-live.conf $T/etc/sudoers.d/20-ultimate-live \
+  $T/etc/polkit-1/rules.d/49-ultimate-live.rules
+if [[ ${UI_KEEP_TEST_ACCESS:-} != 1 ]]; then
+  rm -f $T/root/.ssh/authorized_keys $T/etc/ssh/sshd_config.d/90-ultimate-test.conf
+fi
+
+for f in dev sys proc run; do mkdir -p $T/$f; done
+mount --rbind /dev $T/dev && mount --make-rslave $T/dev
+mount --rbind /sys $T/sys && mount --make-rslave $T/sys
+mount -t proc proc $T/proc
+mount -t tmpfs tmpfs $T/run
+tgt() { chroot $T /usr/bin/env PATH=/usr/sbin:/usr/bin "$@"; }
+
+tgt ssh-keygen -A >/dev/null 2>&1 || true
+if tgt getent passwd $TEST_USER >/dev/null; then tgt userdel $TEST_USER; fi
+tgt useradd -m -s /bin/bash -c "$UI_FULLNAME" "$UI_USER"
+# root gets the same shell start-up files (useradd -m copied them from /etc/skel)
+for f in .bashrc .bash_profile; do
+  [[ -e $T/etc/skel/$f && ! -e $T/root/$f ]] && cp $T/etc/skel/$f $T/root/$f
+done
+for g in wheel audio video input lpadmin netdev wireshark libvirt kvm; do
+  tgt getent group $g >/dev/null && tgt usermod -aG $g "$UI_USER"
+done
+printf '%s:%s\n' "$UI_USER" "$UI_PASSWORD" | tgt chpasswd
+printf 'root:%s\n' "$UI_ROOT_PASSWORD" | tgt chpasswd
+if [[ -d $T/etc/sudoers.d ]]; then
+  echo '%wheel ALL=(ALL:ALL) ALL' > $T/etc/sudoers.d/10-wheel
+  chmod 440 $T/etc/sudoers.d/10-wheel
+fi
+
+# --- boot loader ------------------------------------------------------------------------
+say "Boot loader"
+mkdir -p $T/etc/ultimate
+cat > $T/etc/ultimate/boot.conf <<CONF
+# Written by ultimate-install; read by ultimate-update-grub.
+ROOT_UUID=$root_uuid
+ROOT_PARTUUID=$root_partuuid
+ESP_UUID=$esp_uuid
+EFI_DIR=$([[ -n $esp_uuid ]] && echo EFI/ultimate)
+REMOVABLE=$removable
+CONF
+if [[ $UI_MODE == whole ]]; then
+  # BIOS: GRUB in the disk's BIOS boot partition (a disk that's all ours)
+  tgt grub-install --target=i386-pc "$UI_DISK"
+fi
+if [[ -n $esp_uuid && ! -f $T$SB/grubx64.efi ]]; then
+  # no signed chain: our GRUB, unsigned (Secure Boot must be off)
+  tgt grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=ultimate --no-nvram
+  [[ $removable == 1 ]] && tgt grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable --no-nvram
+fi
+tgt ultimate-update-grub
+
+# The firmware's boot entry, first in the boot order.
+if [[ $efi == 1 && -n $esp_uuid ]] && tgt sh -c 'command -v efibootmgr' >/dev/null; then
+  loader='\EFI\ultimate\grubx64.efi'
+  [[ -f $T/boot/efi/EFI/ultimate/shimx64.efi ]] && loader='\EFI\ultimate\shimx64.efi'
+  for n in $(tgt efibootmgr | sed -n 's/^Boot\([0-9A-F]\{4\}\)\*\? Ultimate Linux.*/\1/p'); do
+    tgt efibootmgr -q -b "$n" -B || true        # an earlier install's entry
+  done
+  espnum=$(cat /sys/class/block/"$(basename "$esp")"/partition)
+  tgt efibootmgr -q -c -d "$UI_DISK" -p "$espnum" -L "Ultimate Linux" -l "$loader" \
+    || echo "  (no firmware boot entry; choose \"Ultimate Linux\" from the firmware's boot menu)"
+fi
+
+sync
+umount -R $T
+trap - EXIT
+say "Done"
+echo "RedCyfer's Ultimate Linux is installed on $root."
+if [[ -f $SB/grubx64.efi && $efi == 1 ]]; then
+  cat <<'SB'
+With Secure Boot on, the machine must trust the Ultimate Linux key once:
+  from any Linux on it:  mokutil --import /usr/lib/ultimate/secureboot/ultimate-mok.cer
+  (choose a one-time password), restart, and in the blue MokManager screen
+  choose "Enroll MOK", then "Continue", "Yes", and the password.
+SB
+fi
+echo "Remove the install medium and restart."

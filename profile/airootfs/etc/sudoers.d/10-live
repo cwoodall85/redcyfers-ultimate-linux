@@ -1,0 +1,3 @@
+# The live user can do anything without a password. Live media only;
+# the installer does not copy this file.
+live ALL=(ALL:ALL) NOPASSWD: ALL

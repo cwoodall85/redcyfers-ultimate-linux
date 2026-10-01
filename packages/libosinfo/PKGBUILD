@@ -1,0 +1,28 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# libosinfo: library (with GObject introspection) virt-install queries
+# for OS defaults. Signed by Victor Toso (97D9123DE37A484F).
+pkgname=libosinfo
+pkgver=1.12.0
+pkgrel=1
+pkgdesc="GObject based library API for managing information about operating systems"
+arch=('x86_64')
+url="https://libosinfo.org/"
+license=('LGPL-2.1-or-later')
+depends=('glib2' 'libxml2' 'libxslt' 'libsoup3' 'osinfo-db' 'hwdata')
+makedepends=('meson')
+source=("https://releases.pagure.org/libosinfo/libosinfo-${pkgver}.tar.xz")
+sha256sums=('ad8557ece26793da43d26de565e3d68ce2ee6bfb8d0113b7cc7dfe07f6bfc6b6')
+
+build() {
+  # libxml2 2.15 no longer defines ATTRIBUTE_UNUSED, which 1.12 still uses.
+  export CFLAGS="$CFLAGS -DATTRIBUTE_UNUSED=__attribute__((unused))"
+  meson setup build "libosinfo-$pkgver" --prefix=/usr --buildtype=release \
+    -Denable-gtk-doc=false -Denable-tests=false -Denable-vala=disabled \
+    -Denable-introspection=enabled -Dwith-pci-ids-path=/usr/share/hwdata/pci.ids \
+    -Dwith-usb-ids-path=/usr/share/hwdata/usb.ids
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

@@ -1,0 +1,15 @@
+# Where pacman fetches the Ultimate repositories. pacman.conf includes this
+# file from each [ultimate*] section; it is a backup file, so a machine's own
+# edits (a local mirror, say) survive upgrades.
+pkgname=ultimate-mirrorlist
+pkgver=20261001
+pkgrel=1
+pkgdesc="Ultimate Linux repository server list"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-linux"
+license=('MIT')
+backup=('etc/pacman.d/ultimate-mirrorlist')
+
+package() {
+  install -Dm644 "$startdir/ultimate-mirrorlist" "$pkgdir/etc/pacman.d/ultimate-mirrorlist"
+}

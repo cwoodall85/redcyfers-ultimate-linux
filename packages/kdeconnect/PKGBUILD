@@ -1,0 +1,56 @@
+# Built on Ultimate Linux itself (tools/native-makepkg.sh), against the
+# KDE Frameworks and Qt this system was built with (/opt/kf6, /opt/qt6).
+# kdeconnect: phone <-> desktop (notifications, clipboard, files, SMS,
+# remote input, media control). Not on Flathub: it needs the session bus,
+# the panel and the file manager, which a sandbox can't give it.
+# Talks on TCP/UDP 1714-1764 on the local network; this system ships no
+# firewall, so there is nothing to open.
+pkgname=kdeconnect
+pkgver=26.04.3
+pkgrel=1
+pkgdesc="Connect your phone to the desktop (KDE Connect)"
+arch=('x86_64')
+url="https://kdeconnect.kde.org"
+license=('GPL-2.0-or-later')
+depends=('libei')
+makedepends=('cmake' 'extra-cmake-modules')
+source=("https://download.kde.org/stable/release-service/${pkgver}/src/kdeconnect-kde-${pkgver}.tar.xz"
+        "openssl4-const-x509-name.patch")
+sha256sums=('505b58b52630a662a8f6a2c50c58eda1de66779762c31d5ea5247b48bba52561'
+            'a9e2aac6ca266f835f60ad3b3565896762ea7ef563a897f02bbff6060a52d60c')
+
+prepare() {
+  # OpenSSL 4: X509_get_subject_name() returns const (same fix as socat's)
+  patch -d "kdeconnect-kde-$pkgver" -p1 < openssl4-const-x509-name.patch
+}
+
+# /opt/kf6 is a symlink to the versioned tree; the installed files must
+# live under the real directory, as the other KDE packages' do.
+_kf6=/opt/kf6
+_kf6real=/opt/kf6-6.29.0
+
+build() {
+  cmake -B build -S "kdeconnect-kde-$pkgver" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=$_kf6 -DCMAKE_PREFIX_PATH="/opt/qt6;$_kf6" \
+    -DBUILD_TESTING=OFF -DWITH_X11=OFF -DINSTALL_UFW_APPLICATION_RULE=OFF
+  # WITH_X11=OFF: the desktop is Plasma on Wayland; remote input goes
+  # through libei. The X11 path would need libfakekey, which nothing else uses.
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+  mkdir -p "$pkgdir/opt"
+  mv "$pkgdir$_kf6" "$pkgdir$_kf6real"
+  # Some directories of the KDE tree are symlinks into /usr on this system
+  # (share/icons/hicolor, share/dbus-1, lib/systemd, ...): pacman won't put a
+  # directory where a symlink is, so files for those go to the link target.
+  local d rel target
+  for d in $(find "$_kf6real" -maxdepth 4 -type l -xtype d); do
+    rel=${d#/}; target=$(readlink -f "$d")
+    [[ -d "$pkgdir/$rel" && ! -L "$pkgdir/$rel" ]] || continue
+    mkdir -p "$pkgdir$target"
+    cp -a "$pkgdir/$rel/." "$pkgdir$target/"
+    rm -rf "$pkgdir/$rel"
+  done
+}

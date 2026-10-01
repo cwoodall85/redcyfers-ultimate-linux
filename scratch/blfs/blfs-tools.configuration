@@ -1,0 +1,17 @@
+# Stage 4: real hardware. cryptsetup (with the kernel's dm-crypt) for
+# encrypted data disks. Firmware (linux-firmware, SOF, wireless-regdb), the
+# CPU microcode images and the final kernel build are hand steps in extra-4.
+optDependency=2
+CONFIG_cryptsetup=y
+LANGUAGE=en_US.UTF-8
+SUDO=n
+WRAP_INSTALL=n
+DEL_LA_FILES=y
+STATS=n
+SRC_ARCHIVE=/sources
+BUILD_ROOT=/sources/blfs
+BUILD_SUBDIRS=y
+JOBS=0
+CFG_CFLAGS=EMPTY
+CFG_CXXFLAGS=EMPTY
+CFG_LDFLAGS=EMPTY

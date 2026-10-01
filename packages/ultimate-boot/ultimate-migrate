@@ -1,0 +1,157 @@
+#!/bin/bash
+# ultimate-migrate -- bring your setup over from the Fedora on the same
+# machine (dual boot), after installing Ultimate Linux.
+#
+#   sudo ultimate-migrate                 show what would be copied (nothing changes)
+#   sudo ultimate-migrate --apply         copy it
+#   options: --mail      also Ultimate Mail's store: its ACCOUNTS and mail
+#                        (mail.db; large, but the accounts are only there)
+#            --projects  also ~/projects (large; git repositories can be
+#                        cloned again from your git server instead)
+#            --wallet    also the KDE wallet (Ultimate Mail's sign-ins); it
+#                        opens with the password it had on Fedora
+#            --from DEV  Fedora's btrfs partition (found by its label otherwise)
+#            --user NAME the account here (default: whoever ran sudo)
+#            --from-user NAME  the account on Fedora (default: the same name)
+#
+# Fedora is mounted read-only; nothing on it changes. Anything here that a
+# copy replaces is kept next to it with a .pre-migrate suffix.
+set -euo pipefail
+export PATH=/usr/sbin:/usr/bin:$PATH
+die() { echo "ultimate-migrate: $*" >&2; exit 1; }
+[[ $EUID == 0 ]] || die "run with sudo"
+
+apply=0 mail=0 projects=0 wallet=0 from="" user=${SUDO_USER:-} fuser=""
+while (($#)); do
+  case $1 in
+    --apply) apply=1 ;;
+    --mail) mail=1 ;;
+    --projects) projects=1 ;;
+    --wallet) wallet=1 ;;
+    --from) from=$2; shift ;;
+    --user) user=$2; shift ;;
+    --from-user) fuser=$2; shift ;;
+    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    *) die "unknown option $1" ;;
+  esac
+  shift
+done
+[[ -n $user ]] || die "which account here? (--user NAME)"
+home=$(getent passwd "$user" | cut -d: -f6); [[ -d $home ]] || die "no home for $user"
+fuser=${fuser:-$user}
+
+# --- Fedora, read-only ------------------------------------------------------------
+if [[ -z $from ]]; then
+  from=$(blkid -t TYPE=btrfs -o device | while read -r d; do
+           [[ $(blkid -s LABEL -o value "$d") == fedora* ]] && { echo "$d"; break; }
+         done)
+fi
+[[ -b ${from:-} ]] || die "no Fedora partition found (--from /dev/...)"
+M=/run/ultimate-migrate
+mkdir -p $M/top
+cleanup() { umount -R $M/top 2>/dev/null || true; }
+trap cleanup EXIT
+mount -o ro "$from" $M/top
+FROOT=$M/top/root; FHOME=$M/top/home          # Fedora's btrfs subvolumes
+[[ -d $FROOT/etc ]] || FROOT=$M/top
+[[ -d $FHOME/$fuser ]] || FHOME=$FROOT/home
+[[ -d $FHOME/$fuser ]] || die "no /home/$fuser on $from"
+FH=$FHOME/$fuser
+echo "Fedora: $from (read-only)   its home: /home/$fuser   here: $home ($user)"
+echo
+
+# --- what to bring --------------------------------------------------------------------
+# kind  source (Fedora)  destination (here)  why
+items=()
+add() { items+=("$1|$2|$3|$4"); }
+add user "$FH/.ssh"                    "$home/.ssh"                    "SSH keys and config"
+add user "$FH/.ultimate-ssh"           "$home/.ultimate-ssh"           "Ultimate SSH's hosts and settings"
+add user "$FH/.config/ultimate-mail"   "$home/.config/ultimate-mail"   "Ultimate Mail's settings (the accounts are in its store: --mail)"
+add user "$FH/.claude"                 "$home/.claude"                 "Claude Code: settings, memory, sign-in"
+add user "$FH/.claude.json"            "$home/.claude.json"            "Claude Code: state"
+add user "$FH/.gitconfig"              "$home/.gitconfig"              "git identity and settings"
+add user "$FH/.config/git"             "$home/.config/git"             "git settings"
+add user "$FH/.aws/config"             "$home/.aws/config"             "AWS profiles (no keys; sign in again with aws sso login)"
+add user "$FH/.config/gh"              "$home/.config/gh"              "GitHub CLI accounts (sign in again: its tokens were in the keyring)"
+add user "$FH/.config/powerdevilrc"      "$home/.config/powerdevilrc"      "power settings (sleep, screen off)"
+add user "$FH/.config/kscreenlockerrc"   "$home/.config/kscreenlockerrc"   "screen lock settings"
+((mail))     && add user "$FH/.local/share/ultimate-mail" "$home/.local/share/ultimate-mail" "Ultimate Mail's accounts and mail"
+((projects)) && add user "$FH/projects" "$home/projects" "your projects"
+((wallet))   && add user "$FH/.local/share/kwalletd" "$home/.local/share/kwalletd" "KDE wallet (sign-ins)"
+for f in "$FROOT"/etc/NetworkManager/system-connections/*.nmconnection; do
+  [[ -f $f ]] && add net "$f" "/etc/NetworkManager/system-connections/${f##*/}" "network: $(basename "$f" .nmconnection)"
+done
+for f in hid_apple.conf kvm.conf vhost.conf; do
+  [[ -f $FROOT/etc/modprobe.d/$f ]] && add system "$FROOT/etc/modprobe.d/$f" "/etc/modprobe.d/$f" "module options ($f)"
+done
+
+size() { du -sh "$1" 2>/dev/null | cut -f1; }
+for it in "${items[@]}"; do
+  IFS='|' read -r kind src dst why <<<"$it"
+  if [[ -e $src ]]; then
+    state=""; [[ -e $dst ]] && state="  (replaces what's here; kept as .pre-migrate)"
+    printf '  %-6s %6s  %-44s %s%s\n' "$kind" "$(size "$src")" "${dst/#$home/\~}" "$why" "$state"
+  fi
+done
+
+# Mounts other than the system's own (a data disk such as /mnt/storage),
+# without SELinux-only options, which this kernel doesn't know.
+mounts=()
+while read -r spec mp fstype opts rest; do
+  case $spec in ''|\#*) continue ;; esac
+  case $mp in /|/boot|/boot/efi|/home|none|swap) continue ;; esac
+  [[ $fstype == swap ]] && continue
+  grep -qs "[[:space:]]$mp[[:space:]]" /etc/fstab && continue
+  opts=$(echo "$opts" | tr ',' '\n' | grep -v -E '^(context|fscontext|defcontext|rootcontext)=' | paste -sd, -)
+  mounts+=("$spec $mp $fstype ${opts:-defaults} ${rest:-0 0}")
+  printf '  %-6s %6s  %-44s %s\n' mount "" "$mp" "from Fedora's fstab: $spec"
+done < "$FROOT/etc/fstab"
+((mail)) || echo "  (not copied: Ultimate Mail's ACCOUNTS and mail -- add --mail, or add every account again)"
+((projects)) || echo "  (not copied: ~/projects -- add --projects, or clone it from your git server)"
+((wallet)) || echo "  (not copied: the KDE wallet -- add --wallet, or sign in to mail accounts again)"
+
+if ((apply == 0)); then
+  echo; echo "Nothing changed. Run again with --apply to copy."; exit 0
+fi
+
+# --- copy -------------------------------------------------------------------------------
+echo; echo "Copying..."
+stamp=$(date +%Y%m%d-%H%M%S)
+for it in "${items[@]}"; do
+  IFS='|' read -r kind src dst why <<<"$it"
+  [[ -e $src ]] || continue
+  [[ -e $dst ]] && mv "$dst" "$dst.pre-migrate-$stamp"
+  mkdir -p "$(dirname "$dst")"
+  if [[ -d $src ]]; then rsync -aHAX --numeric-ids "$src/" "$dst/"; else cp -a "$src" "$dst"; fi
+  if [[ $kind == user ]]; then
+    chown -R "$user:$(id -gn "$user")" "$dst"
+    [[ $dst == $home/* ]] && { d=$(dirname "$dst"); while [[ $d != "$home" ]]; do chown "$user:$(id -gn "$user")" "$d"; d=$(dirname "$d"); done; }
+  else
+    chown -R root:root "$dst"
+    [[ $kind == net ]] && chmod 600 "$dst"
+  fi
+  echo "  $why"
+done
+[[ -d $home/.ssh ]] && chmod 700 "$home/.ssh" && chmod -R go-rwx "$home/.ssh"
+# Fedora ran Ultimate Mail/SSH from ~/.local/bin; here they're packaged in
+# /usr/bin, so Claude Code's MCP entries would point at nothing.
+cj=$home/.claude.json
+[[ -f $cj ]] && sed -i -E "s#\"(/home/$fuser|$home)/.local/bin/(ultimate-[a-z]+)\"#\"/usr/bin/\2\"#g" "$cj"
+for m in "${mounts[@]}"; do
+  mp=$(echo "$m" | awk '{print $2}')
+  mkdir -p "$mp"
+  echo "$m" >> /etc/fstab
+  echo "  mount $mp added to /etc/fstab"
+done
+((${#mounts[@]})) && { systemctl daemon-reload; mount -a 2>/dev/null || echo "  (mount -a reported a problem; check /etc/fstab)"; }
+command -v nmcli >/dev/null && nmcli connection reload 2>/dev/null || true
+if [[ $fuser != "$user" ]]; then
+  echo; echo "Note: network profiles may point at files under /home/$fuser (VPN certificates);"
+  echo "      edit them in System Settings > Network if a connection fails."
+fi
+cat <<'NEXT'
+
+Done. Sign in again where the keyring held the token:
+  gh auth login          aws sso login          (Ultimate Mail: its accounts, if no --wallet)
+Keyboard: the hid_apple option applies after the next restart.
+NEXT

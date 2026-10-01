@@ -1,0 +1,10 @@
+#!/bin/sh
+# usb-wake-path SYSFS_PATH -- enable power/wakeup on the USB device that
+# owns this interface and on every parent (hubs, xHCI controller, PCIe
+# bridges) that supports it. Run by 70-ultimate-bt-wake.rules.
+d=$(dirname "$1")
+while [ -n "$d" ] && [ "$d" != /sys/devices ] && [ "$d" != / ]; do
+  [ -w "$d/power/wakeup" ] && echo enabled > "$d/power/wakeup" 2>/dev/null
+  d=$(dirname "$d")
+done
+exit 0

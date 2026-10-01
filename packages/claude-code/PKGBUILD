@@ -1,0 +1,35 @@
+# Claude Code, from the npm registry. Only the self-contained native
+# binary is kept: npm fetches it as the linux-x64 platform package, and the
+# JavaScript wrapper around it is not needed on an installed system.
+#
+# npm 12 blocks install scripts by default, and Claude Code's postinstall
+# is what normally links that binary in. Taking the binary straight from
+# the platform package keeps the build free of third-party scripts.
+pkgname=claude-code
+pkgver=2.1.283
+pkgrel=2
+pkgdesc="Claude Code, Anthropic's agentic coding tool for the terminal"
+arch=('x86_64')
+url="https://claude.com/claude-code"
+license=('LicenseRef-Anthropic-Commercial')
+makedepends=('npm')
+backup=('etc/claude-code/managed-settings.json')
+options=('!strip' '!debug')
+
+build() {
+  npm install --no-fund --no-audit --prefix "$srcdir/npm" \
+    "@anthropic-ai/claude-code@${pkgver}"
+}
+
+package() {
+  local mod="$srcdir/npm/node_modules/@anthropic-ai"
+  install -Dm755 "$mod/claude-code-linux-x64/claude" "$pkgdir/usr/lib/claude-code/claude"
+  install -d "$pkgdir/usr/bin"
+  ln -s /usr/lib/claude-code/claude "$pkgdir/usr/bin/claude"
+  install -Dm644 "$mod/claude-code/LICENSE.md" "$pkgdir/usr/share/licenses/$pkgname/LICENSE.md"
+  # pacman owns updates on this system; Claude Code's own updater would
+  # write outside the package and fight it.
+  install -d "$pkgdir/etc/claude-code"
+  printf '{\n  "env": {\n    "DISABLE_AUTOUPDATER": "1"\n  }\n}\n' \
+    > "$pkgdir/etc/claude-code/managed-settings.json"
+}

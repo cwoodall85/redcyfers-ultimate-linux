@@ -1,0 +1,20 @@
+# The Ultimate Linux repository key, for pacman-key: every package and
+# database in the ultimate, ultimate-desktop and ultimate-base repositories
+# is signed with its signing subkey. The primary key (certify only) is kept
+# offline; ultimate.gpg is its public half, exported from there.
+pkgname=ultimate-keyring
+pkgver=20261001
+pkgrel=1
+pkgdesc="Ultimate Linux repository signing key (pacman keyring)"
+arch=('any')
+url="https://github.com/cwoodall85/redcyfers-ultimate-linux"
+license=('MIT')
+depends=('pacman')
+install=ultimate-keyring.install
+
+package() {
+  local s="$startdir" k="$pkgdir/usr/share/pacman/keyrings"
+  install -Dm644 "$s/ultimate.gpg" "$k/ultimate.gpg"
+  install -Dm644 "$s/ultimate-trusted" "$k/ultimate-trusted"
+  install -Dm644 "$s/ultimate-revoked" "$k/ultimate-revoked"
+}

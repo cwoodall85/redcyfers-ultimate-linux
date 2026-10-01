@@ -1,0 +1,27 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh, like the
+# other tools built against this system's libraries.
+# fastfetch: the system summary printed when a terminal opens (skel's
+# .bashrc runs it). Its optional libraries (Wayland, DRM, D-Bus, Vulkan,
+# ...) are opened at run time, so a missing one only hides that line.
+# The Ultimate logo and layout come with ultimate-theme.
+pkgname=fastfetch
+pkgver=2.69.0
+pkgrel=1
+pkgdesc="System information shown when a terminal opens"
+arch=('x86_64')
+url="https://github.com/fastfetch-cli/fastfetch"
+license=('MIT')
+makedepends=('cmake')
+source=("fastfetch-${pkgver}.tar.gz::https://github.com/fastfetch-cli/fastfetch/archive/refs/tags/${pkgver}.tar.gz")
+sha256sums=('d0e42faf307e39e7b531d632745a56e4eb558a6545f557280099c622562355ee')
+
+build() {
+  cmake -B build -S "fastfetch-$pkgver" -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_FLASHFETCH=OFF -DSET_TWEAK=OFF \
+    -DENABLE_SYSTEM_YYJSON=OFF
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+}

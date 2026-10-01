@@ -1,0 +1,21 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# Go toolchain, the official build as-is (Go bootstraps itself; building
+# it from source needs an older Go). Podman is written in Go.
+pkgname=go
+pkgver=1.27.1
+pkgrel=1
+pkgdesc="The Go programming language toolchain"
+arch=('x86_64')
+url="https://go.dev/"
+license=('BSD-3-Clause')
+options=('!strip' 'staticlibs')
+source=("https://go.dev/dl/go${pkgver}.linux-amd64.tar.gz")
+sha256sums=('63d339f0da5ab53635a56f2490a7984dfe12dfcff22ad749f63edaf590168445')
+
+package() {
+  install -d "$pkgdir/usr/lib" "$pkgdir/usr/bin"
+  cp -a go "$pkgdir/usr/lib/go"
+  ln -s /usr/lib/go/bin/go "$pkgdir/usr/bin/go"
+  ln -s /usr/lib/go/bin/gofmt "$pkgdir/usr/bin/gofmt"
+  install -Dm644 go/LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}

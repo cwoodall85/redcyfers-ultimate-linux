@@ -1,0 +1,24 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# libvirt-glib: GLib integration for libvirt; virt-viewer needs it.
+# Signed by Daniel P. Berrange (BE86EBB415104FDF).
+pkgname=libvirt-glib
+pkgver=5.0.0
+pkgrel=1
+pkgdesc="GLib and GObject mappings for libvirt"
+arch=('x86_64')
+url="https://libvirt.org/"
+license=('LGPL-2.1-or-later')
+depends=('libvirt' 'glib2' 'libxml2')
+makedepends=('meson')
+source=("https://download.libvirt.org/glib/libvirt-glib-${pkgver}.tar.xz")
+sha256sums=('9bfec346382416a3575d87299bc641b2a464aa519fd9b1287e318aa43a2f3b8b')
+
+build() {
+  meson setup build "libvirt-glib-$pkgver" --prefix=/usr --buildtype=release \
+    -Ddocs=disabled -Dtests=disabled -Dintrospection=disabled -Dvapi=disabled -Drpath=disabled
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+}

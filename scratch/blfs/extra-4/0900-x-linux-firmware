@@ -1,0 +1,26 @@
+#!/bin/bash
+# linux-firmware: firmware for GPUs (amdgpu, i915/xe, nouveau), Wi-Fi
+# (ath10k-12k, iwlwifi, mt76, rtw88/89, brcmfmac), Bluetooth, wired NICs
+# (rtl_nic for the RTL8125/8126), and AMD CPU microcode. Installed
+# zstd-compressed (the kernel reads .zst: CONFIG_FW_LOADER_COMPRESS_ZSTD).
+# Source: kernel.org release tarball; sha256 from kernel.org's sha256sums.asc.
+set -e
+# fetched by fetch.py: wget -T 30 -t 5 "https://cdn.kernel.org/pub/linux/kernel/firmware/linux-firmware-20260916.tar.xz"
+FILE=linux-firmware-20260916.tar.xz
+cd /sources
+echo "f80dcb757a623deda62200c08e0e1a88c76fb6b54964f31b35fa74da1c90ccc5  $FILE" | sha256sum -c -
+W=/sources/blfs/extra-linux-firmware
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/$FILE
+cd linux-firmware-20260916
+rm -rf /usr/lib/firmware.new && mkdir -p /usr/lib/firmware.new
+# One job: copy-firmware.sh parallelises only with GNU parallel, not built.
+make FIRMWAREDIR=/usr/lib/firmware.new NUM_JOBS=1 install-zst
+# Keep anything already there that isn't linux-firmware's (SOF, regdb).
+cp -an /usr/lib/firmware/. /usr/lib/firmware.new/ 2>/dev/null || true
+rm -rf /usr/lib/firmware.old
+[[ -d /usr/lib/firmware ]] && mv /usr/lib/firmware /usr/lib/firmware.old
+mv /usr/lib/firmware.new /usr/lib/firmware
+rm -rf /usr/lib/firmware.old
+cd / && rm -rf $W
+du -sh /usr/lib/firmware

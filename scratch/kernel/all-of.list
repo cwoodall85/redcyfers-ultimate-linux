@@ -1,0 +1,36 @@
+# Option families that tools/make-kernel-config.sh turns on in full: every
+# "# CONFIG_X is not set" whose name matches one of these (extended regex,
+# anchored at the start of the name after CONFIG_; names may have lower
+# case, like SND_SOC_AMD_ACP6x) becomes =m (or =y where
+# the option is a bool; olddefconfig settles that). Options whose name
+# contains DEBUG, TRACE, TEST, KUNIT or SELFTEST are never turned on.
+SND_HDA_(CODEC_[A-Za-z0-9_]+|GENERIC)
+SND_SOC_SOF_[A-Za-z0-9_]+
+SND_SOC_INTEL_[A-Za-z0-9_]+
+SND_SOC_AMD_[A-Za-z0-9_]+
+IWL[A-Za-z0-9_]+
+ATH(9K|10K|11K|12K)[A-Za-z0-9_]*
+RTW(88|89)[A-Za-z0-9_]*
+MT7(6|9)[A-Za-z0-9_]+
+BRCMFMAC[A-Za-z0-9_]*
+RTL8XXXU[A-Za-z0-9_]*
+BT_(HCIBTUSB|INTEL|BCM|RTL|MTK)[A-Za-z0-9_]*
+SOUNDWIRE_[A-Za-z0-9_]+
+PINCTRL_(ALDERLAKE|TIGERLAKE|METEORLAKE|METEORPOINT|LUNARLAKE|ELKHARTLAKE|JASPERLAKE|CANNONLAKE|ICELAKE|EMMITSBURG|CEDARFORK)
+# The netfilter stack (parents in ultimate.fragment)
+NFT_[A-Za-z0-9_]+
+NF_TABLES_[A-Za-z0-9_]+
+NF_CONNTRACK_[A-Za-z0-9_]+
+NF_CT_[A-Za-z0-9_]+
+NF_NAT_[A-Za-z0-9_]+
+NF_LOG_[A-Za-z0-9_]+
+NF_DUP_[A-Za-z0-9_]+
+NF_FLOW_TABLE[A-Za-z0-9_]*
+NF_SOCKET_[A-Za-z0-9_]+
+NF_TPROXY_[A-Za-z0-9_]+
+NETFILTER_XT_[A-Za-z0-9_]+
+NETFILTER_NETLINK_[A-Za-z0-9_]+
+IP_NF_[A-Za-z0-9_]+
+IP6_NF_[A-Za-z0-9_]+
+IP_SET_[A-Za-z0-9_]+
+BRIDGE_EBT_[A-Za-z0-9_]+

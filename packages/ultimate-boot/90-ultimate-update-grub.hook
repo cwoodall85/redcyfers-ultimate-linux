@@ -1,0 +1,13 @@
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Operation = Remove
+Type = Path
+Target = boot/vmlinuz-*
+Target = boot/*-ucode.img
+Target = usr/lib/ultimate/secureboot/*
+
+[Action]
+Description = Updating the Ultimate Linux boot menu...
+When = PostTransaction
+Exec = /usr/bin/ultimate-update-grub

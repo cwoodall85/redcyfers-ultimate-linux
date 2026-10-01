@@ -1,0 +1,5 @@
+// Ultimate Linux: members of wheel are administrators (pkexec, Plasma's
+// system settings). polkit's own default is root only.
+polkit.addAdminRule(function(action, subject) {
+    return ["unix-group:wheel"];
+});

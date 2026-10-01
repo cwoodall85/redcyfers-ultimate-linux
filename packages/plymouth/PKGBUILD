@@ -1,0 +1,72 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh, like the
+# other tools built against this system's libraries.
+# plymouth: the graphical boot screen. There is no initramfs here, so it
+# starts with systemd once the kernel has mounted the root filesystem
+# (plymouth-start.service, early in sysinit) and hands over to SDDM; the
+# kernel's own messages are hidden by "quiet splash" on its command line.
+# The Ultimate theme comes with ultimate-theme.
+# -4: plain "plymouth quit", not --retain-splash. A retained splash leaves
+# the console in graphics mode for the next display server to take over;
+# GDM does that, SDDM doesn't, and its X server then sometimes waited
+# forever to switch VTs (black screen after boot; seen 2026-10-01 in the
+# release-image tests).
+pkgname=plymouth
+pkgver=26.134.222
+pkgrel=4
+pkgdesc="Graphical boot screen"
+arch=('x86_64')
+url="https://www.freedesktop.org/wiki/Software/Plymouth/"
+license=('GPL-2.0-or-later')
+depends=('libdrm' 'libpng' 'pango' 'cairo' 'freetype2' 'libxkbcommon' 'libevdev' 'systemd')
+makedepends=('meson')
+backup=('etc/plymouth/plymouthd.conf')
+source=("https://www.freedesktop.org/software/plymouth/releases/plymouth-${pkgver}.tar.xz")
+sha256sums=('6ee1068216c5047923fabf0f6aa583e9d77cab383077358df3fc22f2ee398bb0')
+
+build() {
+  meson setup build "plymouth-$pkgver" --prefix=/usr --sysconfdir=/etc \
+    --localstatedir=/var --libexecdir=/usr/lib --buildtype=release \
+    -Drunstatedir=/run -Drelease-file=/etc/os-release \
+    -Dlogo=/usr/share/icons/hicolor/scalable/apps/ultimate-linux-mark.svg \
+    -Dsystemd-integration=true -Dudev=enabled -Dpango=enabled -Dfreetype=enabled \
+    -Ddrm=true -Dgtk=disabled -Ddocs=false -Dupstart-monitoring=false -Dtracing=false
+  meson compile -C build
+}
+
+package() {
+  meson install -C build --destdir "$pkgdir"
+  # The Ultimate theme by default (ultimate-theme ships it).
+  install -Dm644 /dev/stdin "$pkgdir/etc/plymouth/plymouthd.conf" <<CONF
+[Daemon]
+Theme=ultimate
+ShowDelay=0
+DeviceTimeout=8
+CONF
+  # This system boots in a couple of seconds, so plymouth is told to quit
+  # almost as soon as it starts. Keep its last frame (every progress node
+  # lit) on screen until the login screen draws over it, instead of a black
+  # gap while SDDM loads.
+  # Login is ready ~3.5 s after power-on, and the GPU driver replaces the
+  # firmware framebuffer just as plymouth starts: without a hold it quits
+  # before it has drawn. Hold the boot screen at least PLYMOUTH_HOLD seconds
+  # (/etc/ultimate/boot.conf, default 3; 0 = no hold), then keep its last
+  # frame until the login screen draws.
+  install -Dm755 /dev/stdin "$pkgdir/usr/lib/ultimate/plymouth-hold" <<'HOLD'
+#!/bin/sh
+hold=3
+[ -r /etc/ultimate/boot.conf ] && . /etc/ultimate/boot.conf && hold=${PLYMOUTH_HOLD:-3}
+pid=$(cat /run/plymouth/pid 2>/dev/null) || exit 0
+i=0
+while [ "$(ps -o etimes= -p "$pid" 2>/dev/null | tr -d ' ')" -lt "$hold" ] 2>/dev/null && [ $i -lt 100 ]; do
+  sleep 0.1; i=$((i + 1))
+done
+exit 0
+HOLD
+  install -Dm644 /dev/stdin "$pkgdir/usr/lib/systemd/system/plymouth-quit.service.d/10-ultimate.conf" <<UNIT
+[Service]
+ExecStartPre=-/usr/lib/ultimate/plymouth-hold
+ExecStart=
+ExecStart=-/usr/bin/plymouth quit
+UNIT
+  rm -rf "$pkgdir/var/run" "$pkgdir/run"
+}

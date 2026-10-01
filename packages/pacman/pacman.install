@@ -1,0 +1,23 @@
+# pacman.conf is a backup file, so an existing one keeps its settings.
+# Turn DownloadUser on there too (the alpm user comes from sysusers.d via
+# the ultimate-sysusers hook, which runs after this; create it here now).
+post_upgrade() {
+  getent passwd alpm >/dev/null || ultimate-sysusers >/dev/null 2>&1 || true
+  if getent passwd alpm >/dev/null && ! grep -q '^DownloadUser' etc/pacman.conf; then
+    sed -i 's/^#DownloadUser = alpm$/DownloadUser = alpm\nDisableSandboxFilesystem/' etc/pacman.conf
+  fi
+  # No Landlock in the kernel yet: without this, pacman won't download.
+  if grep -q '^DownloadUser' etc/pacman.conf && ! grep -q '^DisableSandboxFilesystem' etc/pacman.conf; then
+    sed -i 's/^DownloadUser = alpm$/&\nDisableSandboxFilesystem/' etc/pacman.conf
+  fi
+  # The Ultimate repositories, if this pacman.conf predates them.
+  if ! grep -q '^\[ultimate\]' etc/pacman.conf; then
+    for r in ultimate ultimate-desktop ultimate-base; do
+      printf '\n[%s]\nSigLevel = Required DatabaseRequired\nInclude = /etc/pacman.d/ultimate-mirrorlist\n' "$r"
+    done >> etc/pacman.conf
+  fi
+}
+
+post_install() {
+  post_upgrade
+}

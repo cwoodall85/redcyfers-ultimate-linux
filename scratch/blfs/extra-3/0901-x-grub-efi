@@ -1,0 +1,22 @@
+#!/bin/bash
+# GRUB 2.14 for UEFI (x86_64-efi), from the source LFS already used for
+# the BIOS GRUB. BLFS 13.1 archived its GRUB-for-EFI page; these are its
+# commands. Built into a staging directory and only the x86_64-efi
+# modules copied in, so the BIOS GRUB's tools and files -- tracked by
+# pacman -- are left as they are. grub-install/grub-mkimage (shared by
+# both platforms) then build EFI images from /usr/lib/grub/x86_64-efi.
+set -e
+cd /sources
+W=/sources/blfs/extra-grub-efi
+rm -rf $W && mkdir -p $W && cd $W
+tar --no-same-owner -xf /sources/grub-2.14.tar.xz
+cd grub-2.14
+unset CFLAGS CPPFLAGS CXXFLAGS LDFLAGS
+./configure --prefix=/usr --sysconfdir=/etc --disable-efiemu \
+            --with-platform=efi --target=x86_64 --disable-werror
+make -j"$(nproc)"
+make DESTDIR=$W/stage install
+rm -rf /usr/lib/grub/x86_64-efi
+cp -a $W/stage/usr/lib/grub/x86_64-efi /usr/lib/grub/
+ls /usr/lib/grub/x86_64-efi | wc -l
+cd / && rm -rf $W

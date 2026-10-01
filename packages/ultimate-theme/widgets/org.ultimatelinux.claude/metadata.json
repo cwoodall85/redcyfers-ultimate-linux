@@ -1,0 +1,18 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Ultimate Linux"
+            }
+        ],
+        "Category": "Utilities",
+        "Description": "What Claude is doing and its answers; scroll and page back through earlier ones",
+        "Icon": "dialog-scripts",
+        "Id": "org.ultimatelinux.claude",
+        "License": "MIT",
+        "Name": "Ultimate Claude",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

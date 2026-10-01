@@ -1,0 +1,4 @@
+#!/bin/bash
+# `nc`, as nmap's ncat (built in BLFS stage 2).
+set -e
+[ -x /usr/bin/ncat ] && ln -sfv ncat /usr/bin/nc

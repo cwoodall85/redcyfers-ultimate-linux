@@ -1,0 +1,7 @@
+# The distro's own software, from the [ultimate] repository the ISO carries.
+# Installed on the live ISO and on every installed system.
+ultimate-mail
+ultimate-ssh
+ultimate-claude
+claude-code
+ultimate-theme

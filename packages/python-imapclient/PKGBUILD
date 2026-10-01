@@ -1,0 +1,19 @@
+# Not in the official Arch repos. Pinned to 3.0.1, the version Ultimate
+# Mail is developed and tested against; 4.x is a major release.
+pkgname=python-imapclient
+_name=IMAPClient
+pkgver=3.0.1
+pkgrel=1
+pkgdesc="Easy-to-use, Pythonic and complete IMAP client library"
+arch=('any')
+url="https://github.com/mjs/imapclient"
+license=('BSD-3-Clause')
+depends=('python')
+makedepends=('python-installer')
+source=("https://files.pythonhosted.org/packages/de/8a/d1364c1c6d8f53ea390e8f1c6da220a4f9ee478ac8a473ae0669a2fb6f51/${_name}-${pkgver}-py2.py3-none-any.whl")
+sha256sums=('d77d77caa4123e0233b5cf2b9c54a078522e63270b88d3f48653a28637fd8828')
+noextract=("${_name}-${pkgver}-py2.py3-none-any.whl")
+
+package() {
+  python -m installer --destdir="$pkgdir" "${_name}-${pkgver}-py2.py3-none-any.whl"
+}

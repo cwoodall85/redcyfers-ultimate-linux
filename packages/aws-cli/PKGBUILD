@@ -1,0 +1,32 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh: it goes
+# with google-chrome into the private package set, and links against
+# this system's libraries (OpenSSL 4), which Arch's container lacks.
+# AWS CLI v2, repackaged from Amazon's official bundle (it carries its own
+# Python; built from source it needs ~60 Python packages the base lacks).
+# The bundle is signed by the AWS CLI Team key
+# FB5DB77FD5C118B80511ADA8A6310ACC4672475C; the checksum below was taken
+# after `gpg --verify` of the .sig passed (the key itself is marked expired;
+# AWS still signs with it).
+pkgname=aws-cli
+pkgver=2.37.6
+pkgrel=1
+pkgdesc="Amazon Web Services command line interface (v2)"
+arch=('x86_64')
+url="https://aws.amazon.com/cli/"
+license=('Apache-2.0')
+depends=('glibc' 'groff')
+options=('!strip' '!debug')
+source=("awscli-${pkgver}.zip::https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${pkgver}.zip")
+sha256sums=('cd40c7d1f41b3a4964e77a65377e480d71fe6ebc96bbbb64eb2239d69af6fbb2')
+
+package() {
+  # The bundle's own installer, pointed into the package.
+  ./aws/install --install-dir "$pkgdir/usr/lib/aws-cli" --bin-dir "$srcdir/bin"
+  # It writes absolute symlinks into $pkgdir and a versioned directory
+  # behind a "current" link; point them at the installed paths.
+  ln -sfn "$pkgver" "$pkgdir/usr/lib/aws-cli/v2/current"
+  install -d "$pkgdir/usr/bin"
+  ln -s /usr/lib/aws-cli/v2/current/bin/aws "$pkgdir/usr/bin/aws"
+  ln -s /usr/lib/aws-cli/v2/current/bin/aws_completer "$pkgdir/usr/bin/aws_completer"
+  install -Dm644 /dev/stdin "$pkgdir/usr/share/bash-completion/completions/aws" <<<'complete -C aws_completer aws'
+}

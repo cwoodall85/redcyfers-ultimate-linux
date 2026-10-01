@@ -1,0 +1,14 @@
+{
+    "KPackageStructure": "Plasma/Applet",
+    "KPlugin": {
+        "Authors": [{ "Name": "Ultimate Linux" }],
+        "Category": "Utilities",
+        "Description": "Ask Claude from the top bar; its work appears over the desktop",
+        "Icon": "dialog-scripts",
+        "Id": "org.ultimatelinux.claudebar",
+        "License": "MIT",
+        "Name": "Claude Bar",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

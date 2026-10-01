@@ -1,0 +1,30 @@
+# Built on Ultimate Linux itself (makepkg -d), not by build.sh.
+# piper-tts: natural-sounding speech on this machine, for Claude talking back
+# (ultimate-say). Piper (OHF-Voice/piper1-gpl) and its runtime (onnxruntime,
+# numpy, ...) come from their official PyPI wheels, installed as one bundle
+# in /usr/lib/piper so they never mix with the system's Python packages; the
+# `piper` command runs it. Voices are not in the package: ultimate-voice
+# fetches the one you choose into ~/.local/share/ultimate/voice.
+pkgname=piper-tts
+pkgver=1.8.0
+_ort=1.30.0
+pkgrel=1
+pkgdesc="Neural text to speech on this machine (Piper)"
+arch=('x86_64')
+url="https://github.com/OHF-voice/piper1-gpl"
+license=('GPL-3.0-or-later')
+depends=('python')
+options=('!strip' '!debug')
+
+package() {
+  local lib="$pkgdir/usr/lib/piper"
+  python3 -m pip install --no-cache-dir --only-binary=:all: --no-compile \
+    --target "$lib" "piper-tts==$pkgver" "onnxruntime==$_ort"
+  python3 -m pip freeze --path "$lib" > "$lib/BUNDLED-VERSIONS.txt"
+  rm -rf "$lib"/bin
+  python3 -m compileall -q -d /usr/lib/piper "$lib" || true
+  install -Dm755 /dev/stdin "$pkgdir/usr/bin/piper" <<'SH'
+#!/bin/sh
+PYTHONPATH=/usr/lib/piper${PYTHONPATH:+:$PYTHONPATH} exec python3 -m piper "$@"
+SH
+}

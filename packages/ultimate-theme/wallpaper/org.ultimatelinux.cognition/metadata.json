@@ -1,0 +1,13 @@
+{
+    "KPackageStructure": "Plasma/Wallpaper",
+    "KPlugin": {
+        "Authors": [{ "Name": "Ultimate Linux" }],
+        "Description": "A thinking network: signals cross a neural lattice while fragments of machine thought surface and fade",
+        "Icon": "preferences-desktop-wallpaper",
+        "Id": "org.ultimatelinux.cognition",
+        "License": "MIT",
+        "Name": "Cognition",
+        "Version": "1.0"
+    },
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
